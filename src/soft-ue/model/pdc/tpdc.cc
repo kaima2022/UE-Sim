@@ -624,7 +624,7 @@ Tpdc::TransmitPacket (const BufferedPacket& bp)
   NS_LOG_FUNCTION (this << "Transmitting packet, seq: " << bp.sequenceNumber);
 
   // Create PDS header (suppress unused warning with (void))
-  UETPDSHeader header = CreatePdsHeader (bp.packet, bp.som, bp.eom);
+  PDSHeader header = CreatePdsHeader (bp.packet, bp.som, bp.eom);
   (void)header; // Suppress unused variable warning
   NS_LOG_DEBUG ("Created PDS header for packet transmission");
 

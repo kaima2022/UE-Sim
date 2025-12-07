@@ -37,6 +37,7 @@
 #include "ns3/event-id.h"
 #include "ns3/traced-callback.h"
 #include "ns3/packet.h"
+#include <unordered_map>
 #include "../common/transport-layer.h"
 #include "../ses/operation-metadata.h"
 #include "../pds/pds-common.h"
@@ -90,13 +91,14 @@ struct PdcConfig
     Time rtoInitial;                          ///< Initial RTO timeout
     Time rtoMax;                              ///< Maximum RTO timeout
     bool detailedLogging;                     ///< Enable detailed logging
+    uint32_t sequenceNumber;                  ///< Current sequence number
 
     PdcConfig ()
         : pdcId (0), localFep (0), remoteFep (0), tc (0),
           type (PdcType::IPDC), deliveryMode (DeliveryMode::RUD),
           maxPacketSize (1500), rtoPdcContext (0), rtoCccContext (0),
           rtoInitial (MilliSeconds (100)), rtoMax (Seconds (1)),
-          detailedLogging (false)
+          detailedLogging (false), sequenceNumber (1)
     {}
 };
 
@@ -109,17 +111,69 @@ struct PdcStatistics
     uint64_t packetsSent;                     ///< Total packets sent
     uint64_t packetsReceived;                 ///< Total packets received
     uint64_t bytesTransmitted;                ///< Total bytes transmitted
+    uint64_t bytesReceived;                   ///< Total bytes received
     uint64_t retransmissions;                 ///< Number of retransmissions (TPDC only)
     uint64_t timeouts;                        ///< Number of timeouts (TPDC only)
-    uint64_t errors;                          ///< Number of errors
+    uint64_t errors;                          ///< Total number of errors
+    uint64_t validationErrors;                ///< Number of packet validation errors
+    uint64_t protocolErrors;                 ///< Number of protocol errors
+    uint64_t bufferErrors;                   ///< Number of buffer overflow errors
+    uint64_t networkErrors;                  ///< Number of network transmission errors
+    uint64_t packetsDropped;                  ///< Number of packets dropped due to queue overflow
+    std::string lastErrorDetails;           ///< Details of the last error
     Time lastActivity;                        ///< Last activity timestamp
-    double averageLatency;                    ///< Average packet latency in milliseconds
+    double averageLatency;                    ///< Average packet latency in microseconds
+    double minLatency;                        ///< Minimum packet latency in microseconds
+    double maxLatency;                        ///< Maximum packet latency in microseconds
+    Time startTime;                            ///< Statistics collection start time
+    double throughputGbps;                    ///< Current throughput in Gbps
 
     PdcStatistics ()
-        : packetsSent (0), packetsReceived (0), bytesTransmitted (0),
-          retransmissions (0), timeouts (0), errors (0),
-          lastActivity (Seconds (0)), averageLatency (0.0)
+        : packetsSent (0), packetsReceived (0), bytesTransmitted (0), bytesReceived (0),
+          retransmissions (0), timeouts (0), errors (0), validationErrors (0),
+          protocolErrors (0), bufferErrors (0), networkErrors (0), packetsDropped (0),
+          lastErrorDetails (""), lastActivity (Seconds (0)), averageLatency (0.0),
+          minLatency (0.0), maxLatency (0.0), startTime (Simulator::Now ()), throughputGbps (0.0)
     {}
+
+    /**
+     * @brief Reset all statistics
+     */
+    void Reset ()
+    {
+        packetsSent = 0;
+        packetsReceived = 0;
+        bytesTransmitted = 0;
+        bytesReceived = 0;
+        retransmissions = 0;
+        timeouts = 0;
+        errors = 0;
+        validationErrors = 0;
+        protocolErrors = 0;
+        bufferErrors = 0;
+        networkErrors = 0;
+        packetsDropped = 0;
+        lastErrorDetails.clear ();
+        lastActivity = Seconds (0);
+        averageLatency = 0.0;
+        minLatency = 0.0;
+        maxLatency = 0.0;
+        startTime = Simulator::Now ();
+        throughputGbps = 0.0;
+    }
+
+    /**
+     * @brief Update throughput calculation
+     */
+    void UpdateThroughput ()
+    {
+        Time elapsed = Simulator::Now () - startTime;
+        if (elapsed.GetSeconds () > 0)
+          {
+            double bytesPerSec = static_cast<double> (bytesTransmitted + bytesReceived) / elapsed.GetSeconds ();
+            throughputGbps = (bytesPerSec * 8) / (1024.0 * 1024.0 * 1024.0); // Convert to Gbps
+          }
+    }
 };
 
 /**
@@ -192,6 +246,18 @@ public:
      * @return Remote fabric endpoint identifier
      */
     uint32_t GetRemoteFep (void) const;
+
+    /**
+     * @brief Set local fabric endpoint
+     * @param localFep Local fabric endpoint identifier
+     */
+    void SetLocalFep (uint32_t localFep);
+
+    /**
+     * @brief Set remote fabric endpoint
+     * @param remoteFep Remote fabric endpoint identifier
+     */
+    void SetRemoteFep (uint32_t remoteFep);
 
     /**
      * @brief Set associated network device
@@ -299,7 +365,7 @@ protected:
      * @param eom End of message flag
      * @return PDS header
      */
-    UETPDSHeader CreatePdsHeader (Ptr<Packet> packet, bool som, bool eom) const;
+    PDSHeader CreatePdsHeader (Ptr<Packet> packet, bool som, bool eom) const;
 
     /**
      * @brief Parse PDS header from received packet
@@ -354,11 +420,22 @@ private:
     EventId m_processEventId;                  ///< Processing event ID
     Time m_processInterval;                    ///< Processing interval
 
+    // Latency tracking
+    std::unordered_map<uint64_t, Time> m_packetTimestamps; ///< Packet entry timestamps for latency measurement
+
     // Internal helper methods
     void ScheduleProcessing (void);
     void DoPeriodicProcessing (void);
     void ProcessSendQueue (void);
     void ProcessReceiveQueue (void);
+
+    // Latency measurement helpers
+    uint64_t GetPacketId (Ptr<Packet> packet);
+    void RecordPacketEntry (Ptr<Packet> packet);
+    void MeasureAndTraceLatency (Ptr<Packet> packet);
+
+    // Error handling helpers
+    std::string GetErrorTypeString (PdsErrorCode error);
 };
 
 } // namespace ns3

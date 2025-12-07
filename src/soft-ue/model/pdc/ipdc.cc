@@ -1,4 +1,5 @@
 #include "ipdc.h"
+#include "../pds/pds-common.h"
 #include "../network/soft-ue-net-device.h"
 #include "ns3/log.h"
 #include "ns3/simulator.h"
@@ -575,15 +576,33 @@ Ipdc::TransmitPacket (const QueuedPacket& qp)
   // For simulation, we assume success if we have a network device
   if (GetNetDevice ())
     {
-      // Create PDS header (suppress unused warning with (void))
-      UETPDSHeader header = CreatePdsHeader (qp.packet, qp.som, qp.eom);
-      (void)header; // Suppress unused variable warning
+      // Create PDS header
+      PDSHeader header = CreatePdsHeader (qp.packet, qp.som, qp.eom);
       NS_LOG_DEBUG ("Created PDS header for packet transmission");
 
-      // TODO: Actually send through network device
-      // For now, just simulate success
-      LogDetailed ("TransmitPacket", "Packet transmitted successfully");
-      return true;
+      // Actually send through network device
+      Ptr<Packet> packetToSend = qp.packet->Copy ();
+
+      // Add PDS header to packet
+      packetToSend->AddHeader (header);
+
+      // Convert remote FEP to destination address
+      Address destAddress = ConvertFepToAddress (m_ipdcConfig.remoteFep);
+
+      // Send through network device
+      bool success = GetNetDevice ()->Send (packetToSend, destAddress, 0x0800); // EtherType for IP
+
+      if (success)
+        {
+          LogDetailed ("TransmitPacket", "Packet transmitted successfully to FEP " +
+                       std::to_string (m_ipdcConfig.remoteFep));
+        }
+      else
+        {
+          LogDetailed ("TransmitPacket", "Packet transmission failed");
+        }
+
+      return success;
     }
 
   NS_LOG_WARN ("No network device available for transmission");
@@ -637,6 +656,34 @@ void
 Ipdc::SetPacketLifetime (Time lifetime)
 {
   m_ipdcConfig.packetLifetime = lifetime;
+}
+
+Address
+Ipdc::ConvertFepToAddress (uint32_t fep)
+{
+  NS_LOG_FUNCTION (this << fep);
+
+  // Convert FEP to MAC address format
+  // For simplicity, we'll use the FEP as the lower 32 bits of a 48-bit MAC address
+  uint8_t macAddr[6];
+
+  // Use a fixed OUI (Organizationally Unique Identifier) for Soft-UE
+  macAddr[0] = 0x02; // Locally administered
+  macAddr[1] = 0x00; // Soft-UE OUI part 1
+  macAddr[2] = 0x5E; // Soft-UE OUI part 2
+
+  // Encode the FEP in the remaining 4 bytes (use upper 32 bits of FEP)
+  macAddr[3] = (fep >> 24) & 0xFF;
+  macAddr[4] = (fep >> 16) & 0xFF;
+  macAddr[5] = (fep >> 8) & 0xFF;
+
+  Mac48Address mac48Addr = Mac48Address ();
+  mac48Addr.CopyFrom (macAddr);
+  Address address = mac48Addr;
+
+  NS_LOG_DEBUG ("Converted FEP " << fep << " to MAC address " << address);
+
+  return address;
 }
 
 } // namespace ns3

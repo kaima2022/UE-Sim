@@ -73,6 +73,18 @@ SoftUeHelper::Install (NodeContainer nodes)
   return devices;
 }
 
+NetDeviceContainer
+SoftUeHelper::Install (Ptr<Node> node)
+{
+  NS_LOG_FUNCTION (this << node);
+
+  // Create a node container with the single node
+  NodeContainer nodes;
+  nodes.Add (node);
+
+  return Install (nodes);
+}
+
 void
 SoftUeHelper::SetDeviceAttribute (std::string name, const AttributeValue& value)
 {

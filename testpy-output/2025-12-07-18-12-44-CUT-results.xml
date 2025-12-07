@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<Results>
+<Test>
+  <Name>soft-ue-pds</Name>
+  <Result>PASS</Result>
+  <Time real="0.001" user="0.000" system="0.000"/>
+  <Test>
+    <Name>PDS Manager Basic Test</Name>
+    <Result>PASS</Result>
+    <Time real="0.000" user="0.000" system="0.000"/>
+  </Test>
+</Test>
+</Results>

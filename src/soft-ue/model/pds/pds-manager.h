@@ -10,10 +10,11 @@
 #include "ns3/traced-callback.h"
 #include "pds-common.h"
 #include "../ses/ses-manager.h"
-// Forward declaration to avoid circular dependency
-class SoftUeNetDevice;
 
 namespace ns3 {
+
+// Forward declaration to avoid circular dependency
+class SoftUeNetDevice;
 
 /**
  * @class PdsManager

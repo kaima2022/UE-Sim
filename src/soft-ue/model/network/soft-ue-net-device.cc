@@ -1,6 +1,8 @@
 #include "soft-ue-net-device.h"
 #include "soft-ue-channel.h"
+#include "../ses/ses-manager.h"
 #include "../pds/pds-manager.h"
+#include "../pdc/pdc-base.h"
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/nstime.h"

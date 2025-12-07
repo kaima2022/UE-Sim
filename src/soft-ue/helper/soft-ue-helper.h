@@ -26,6 +26,13 @@ public:
     NetDeviceContainer Install (NodeContainer nodes);
 
     /**
+     * Install Soft-UE device on a single node
+     * @param node Single node
+     * @return NetDeviceContainer with installed device
+     */
+    NetDeviceContainer Install (Ptr<Node> node);
+
+    /**
      * Set an attribute on the devices to be created
      * @param name Attribute name
      * @param value Attribute value

@@ -43,12 +43,14 @@
 #include "ns3/ipv6-address.h"
 #include <map>
 #include <vector>
-#include "../ses/ses-manager.h"
-#include "../pds/pds-manager.h"
-#include "../pdc/pdc-base.h"
 #include "../common/transport-layer.h"
 
 namespace ns3 {
+
+// Forward declarations to avoid circular dependencies
+class SesManager;
+class PdsManager;
+class PdcBase;
 
 // Forward declarations
 class SoftUeChannel;

@@ -5,6 +5,8 @@
 #include "ns3/simulator.h"
 #include "ns3/nstime.h"
 #include "ns3/boolean.h"
+#include "ns3/integer.h"
+#include "ns3/uinteger.h"
 #include <algorithm>
 
 namespace ns3 {
@@ -28,6 +30,21 @@ PdcBase::GetTypeId (void)
                    TimeValue (MilliSeconds (1)),
                    MakeTimeAccessor (&PdcBase::m_processInterval),
                    MakeTimeChecker ())
+    .AddAttribute ("PdcId",
+                   "PDC identifier",
+                   UintegerValue (0),
+                   MakeUintegerAccessor (&PdcBase::GetPdcId, &PdcBase::SetPdcId),
+                   MakeUintegerChecker<uint16_t> ())
+    .AddAttribute ("LocalFep",
+                   "Local fabric endpoint",
+                   UintegerValue (0),
+                   MakeUintegerAccessor (&PdcBase::GetLocalFep, &PdcBase::SetLocalFep),
+                   MakeUintegerChecker<uint32_t> ())
+    .AddAttribute ("RemoteFep",
+                   "Remote fabric endpoint",
+                   UintegerValue (0),
+                   MakeUintegerAccessor (&PdcBase::GetRemoteFep, &PdcBase::SetRemoteFep),
+                   MakeUintegerChecker<uint32_t> ())
     .AddTraceSource ("PacketTx",
                      "Trace packet transmission through PDC",
                      MakeTraceSourceAccessor (&PdcBase::m_packetTxTrace),
@@ -84,6 +101,9 @@ PdcBase::DoDispose (void)
   // Clear component references
   m_netDevice = nullptr;
   m_sesManager = nullptr;
+
+  // Clear packet timestamps
+  m_packetTimestamps.clear ();
 
   Object::DoDispose ();
 }
@@ -143,6 +163,18 @@ PdcBase::GetRemoteFep (void) const
 }
 
 void
+PdcBase::SetLocalFep (uint32_t localFep)
+{
+  m_config.localFep = localFep;
+}
+
+void
+PdcBase::SetRemoteFep (uint32_t remoteFep)
+{
+  m_config.remoteFep = remoteFep;
+}
+
+void
 PdcBase::SetNetDevice (Ptr<SoftUeNetDevice> device)
 {
   NS_LOG_FUNCTION (this << device);
@@ -193,6 +225,9 @@ PdcBase::HandleReceivedPacket (Ptr<Packet> packet, uint32_t sourceFep)
       HandleError (PdsErrorCode::PROTOCOL_ERROR, "Packet destination mismatch");
       return false;
     }
+
+  // Record packet entry timestamp for latency measurement
+  RecordPacketEntry (packet);
 
   // Add to receive queue for processing
   m_receiveQueue.push (packet);
@@ -281,21 +316,14 @@ PdcBase::UpdateConfiguration (const PdcConfig& config)
   return true;
 }
 
-UETPDSHeader
+PDSHeader
 PdcBase::CreatePdsHeader (Ptr<Packet> packet, bool som, bool eom) const
 {
-  UETPDSHeader header;
-  header.version = 1;  // Ultra Ethernet version 1
-  header.reserved = 0;
-  header.tc = m_config.tc;
-  header.dest_fep = m_config.remoteFep;
-  header.src_fep = m_config.localFep;
-  header.som = som;
-  header.eom = eom;
-  header.next_hdr = PDSNextHeader::PAYLOAD;
-  header.msg_len = packet->GetSize ();
-  header.rsv_pdc_context = m_config.rtoPdcContext;
-  header.rsv_ccc_context = m_config.rtoCccContext;
+  PDSHeader header;
+  header.SetPdcId (GetPdcId ());
+  header.SetSequenceNumber (m_config.sequenceNumber);
+  header.SetSom (som);
+  header.SetEom (eom);
 
   return header;
 }
@@ -334,15 +362,15 @@ PdcBase::UpdateStatistics (bool isSend, Ptr<Packet> packet)
   else
     {
       m_statistics.packetsReceived++;
+      m_statistics.bytesReceived += packet->GetSize ();
     }
 
   m_statistics.lastActivity = now;
 
-  // Update average latency (simplified calculation)
-  if (m_statistics.packetsSent + m_statistics.packetsReceived > 0)
+  // Update throughput periodically
+  if ((now - m_statistics.startTime).GetSeconds () > 1.0) // Update every second
     {
-      m_statistics.averageLatency =
-          (m_statistics.averageLatency * 0.9) + (now.GetMilliSeconds () * 0.001);
+      m_statistics.UpdateThroughput ();
     }
 }
 
@@ -378,11 +406,45 @@ PdcBase::HandleError (PdsErrorCode error, const std::string& details)
 {
   NS_LOG_FUNCTION (this << "Error: " << static_cast<int> (error) << " - " << details);
 
+  // Update error statistics
   m_statistics.errors++;
-  m_errorTrace (m_config.pdcId, details);
+  m_statistics.lastErrorDetails = details;
 
-  LogDetailed ("HandleError", "PDC error: " + std::to_string (static_cast<int> (error)) +
-               " - " + details);
+  // Categorize errors for detailed tracking
+  switch (error)
+    {
+    case PdsErrorCode::INVALID_PACKET:
+      m_statistics.validationErrors++;
+      break;
+    case PdsErrorCode::PROTOCOL_ERROR:
+      m_statistics.protocolErrors++;
+      break;
+    case PdsErrorCode::PDC_FULL:
+      m_statistics.bufferErrors++;
+      m_statistics.packetsDropped++;
+      break;
+    default:
+      m_statistics.networkErrors++;
+      break;
+    }
+
+  // Trace error with full details
+  std::string errorType = GetErrorTypeString (error);
+  std::string fullDetails = errorType + ": " + details;
+  m_errorTrace (m_config.pdcId, fullDetails);
+
+  LogDetailed ("HandleError", "PDC error [" + errorType + "]: " + details);
+
+  // Attempt error recovery for non-critical errors
+  if (error == PdsErrorCode::PDC_FULL)
+    {
+      // Trigger queue cleanup
+      if (m_receiveQueue.size () > m_config.maxPacketSize)
+        {
+          NS_LOG_INFO ("Triggering emergency queue cleanup due to buffer overflow");
+          // Could implement aggressive packet dropping here
+        }
+    }
 
   return true;
 }
@@ -438,8 +500,104 @@ PdcBase::ProcessReceiveQueue (void)
       UpdateStatistics (false, packet);
       m_packetRxTrace (packet, m_config.pdcId);
 
+      // Measure and trace packet processing latency
+      MeasureAndTraceLatency (packet);
+
       LogDetailed ("ProcessReceiveQueue", "Processed received packet, size: " +
                    std::to_string (packet->GetSize ()));
+    }
+}
+
+// Latency tracking implementation
+uint64_t
+PdcBase::GetPacketId (Ptr<Packet> packet)
+{
+  NS_LOG_FUNCTION (this << packet);
+
+  // Use packet UID as unique identifier
+  return packet->GetUid ();
+}
+
+void
+PdcBase::RecordPacketEntry (Ptr<Packet> packet)
+{
+  NS_LOG_FUNCTION (this << packet);
+
+  uint64_t packetId = GetPacketId (packet);
+  Time entryTime = Simulator::Now ();
+
+  // Store entry timestamp
+  m_packetTimestamps[packetId] = entryTime;
+
+  NS_LOG_DEBUG ("Recorded entry time for packet " << packetId << " at " << entryTime.GetMicroSeconds () << "μs");
+}
+
+void
+PdcBase::MeasureAndTraceLatency (Ptr<Packet> packet)
+{
+  NS_LOG_FUNCTION (this << packet);
+
+  uint64_t packetId = GetPacketId (packet);
+  auto it = m_packetTimestamps.find (packetId);
+
+  if (it != m_packetTimestamps.end ())
+    {
+      Time entryTime = it->second;
+      Time exitTime = Simulator::Now ();
+      Time latency = exitTime - entryTime;
+
+      // Update statistics
+      if (m_statistics.packetsReceived > 0)
+        {
+          double latencyMicros = latency.GetMicroSeconds ();
+          m_statistics.averageLatency =
+            ((m_statistics.averageLatency * (m_statistics.packetsReceived - 1)) + latencyMicros) /
+            m_statistics.packetsReceived;
+
+          // Update min/max latency
+          if (m_statistics.minLatency == 0.0 || latencyMicros < m_statistics.minLatency)
+            {
+              m_statistics.minLatency = latencyMicros;
+            }
+          if (latencyMicros > m_statistics.maxLatency)
+            {
+              m_statistics.maxLatency = latencyMicros;
+            }
+        }
+
+      // Trace latency
+      m_latencyTrace (latency, m_config.pdcId);
+
+      // Clean up timestamp entry
+      m_packetTimestamps.erase (it);
+
+      NS_LOG_DEBUG ("Measured latency for packet " << packetId << ": " << latency.GetMicroSeconds () << "μs");
+    }
+  else
+    {
+      NS_LOG_WARN ("No entry timestamp found for packet " << packetId);
+    }
+}
+
+std::string
+PdcBase::GetErrorTypeString (PdsErrorCode error)
+{
+  switch (error)
+    {
+    case PdsErrorCode::SUCCESS:
+      return "SUCCESS";
+    case PdsErrorCode::INVALID_PDC:
+      return "INVALID_PDC";
+    case PdsErrorCode::PDC_FULL:
+      return "BUFFER_OVERFLOW";
+    case PdsErrorCode::INVALID_PACKET:
+      return "VALIDATION_ERROR";
+    case PdsErrorCode::RESOURCE_EXHAUSTED:
+      return "RESOURCE_EXHAUSTED";
+    case PdsErrorCode::PROTOCOL_ERROR:
+      return "PROTOCOL_ERROR";
+    default:
+      return "UNKNOWN_ERROR";
     }
 }
 

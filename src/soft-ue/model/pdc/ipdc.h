@@ -38,6 +38,7 @@
 #include "ns3/event-id.h"
 #include "ns3/traced-callback.h"
 #include "ns3/packet.h"
+#include "ns3/mac48-address.h"
 #include "../common/transport-layer.h"
 
 namespace ns3 {
@@ -307,6 +308,9 @@ private:
     bool TransmitPacket (const QueuedPacket& qp);
     void HandlePacketDelivery (Ptr<Packet> packet, bool success);
     uint32_t GenerateSequenceNumber (void);
+
+    // Network device helper
+    Address ConvertFepToAddress (uint32_t fep);
 };
 
 } // namespace ns3
