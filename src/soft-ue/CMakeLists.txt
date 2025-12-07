@@ -1,0 +1,38 @@
+build_lib(
+  LIBNAME soft-ue
+  SOURCE_FILES
+    helper/soft-ue-helper.cc
+    model/ses/ses-manager.cc
+    model/ses/operation-metadata.cc
+    model/pds/pds-manager.cc
+    model/pds/pds-header.cc
+    model/pds/pds-statistics.cc
+    model/pdc/pdc-base.cc
+    model/pdc/ipdc.cc
+    model/pdc/tpdc.cc
+    model/pdc/rto-timer/rto-timer.cc
+    model/network/soft-ue-net-device.cc
+    model/network/soft-ue-channel.cc
+  HEADER_FILES
+    helper/soft-ue-helper.h
+    model/common/transport-layer.h
+    model/common/soft-ue-packet-tag.h
+    model/ses/ses-manager.h
+    model/ses/operation-metadata.h
+    model/ses/msn-entry.h
+    model/pds/pds-manager.h
+    model/pds/pds-common.h
+    model/pdc/pdc-base.h
+    model/pdc/ipdc.h
+    model/pdc/tpdc.h
+    model/pdc/rto-timer/rto-timer.h
+    model/network/soft-ue-net-device.h
+    model/network/soft-ue-channel.h
+  LIBRARIES_TO_LINK ${libnetwork} ${libapplications} ${libinternet} ${libtraffic-control} ${libcore}
+  TEST_SOURCES
+    test/ses-manager-test.cc
+    test/pds-manager-test.cc
+    test/ipdc-test.cc
+    test/tpdc-test.cc
+    test/soft-ue-integration-test.cc
+)
