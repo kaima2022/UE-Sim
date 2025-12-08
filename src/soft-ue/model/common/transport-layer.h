@@ -117,8 +117,10 @@ enum class PDSNextHeader : uint8_t
     UET_HDR_RESPONSE_DATA,      // Response header with data
     UET_HDR_RESPONSE_DATA_SMALL,// Response header with small data
     PAYLOAD,                    // Raw payload data
-    UET_HDR_NONE                // No header
+    UET_HDR_NONE,               // No header
+    PDS_NEXT_HEADER_ROCE = 0x10  // RoCE (RDMA over Converged Ethernet) header
 };
+
 
 /**
  * @brief PDC type enumeration

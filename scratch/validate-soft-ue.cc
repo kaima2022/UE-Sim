@@ -396,7 +396,7 @@ SoftUeValidator::ValidatePdcAllocationManagement ()
     Ptr<SoftUeNetDevice> device = m_devices[0];
 
     // 测试5.1: PDC分配
-    uint16_t pdcId = device->AllocatePdc (2001, 0, 0, PDS_NEXT_HEADER_ROCE);
+    uint16_t pdcId = device->AllocatePdc (2001, 0, 0, PDSNextHeader::PDS_NEXT_HEADER_ROCE);
     if (pdcId != 0)
     {
         LogTest ("PDC分配", true, "PDC分配成功，ID: " + std::to_string (pdcId));
@@ -426,7 +426,7 @@ SoftUeValidator::ValidatePdcAllocationManagement ()
     std::vector<uint16_t> pdcIds;
     for (int i = 0; i < 5; i++)
     {
-        uint16_t id = device->AllocatePdc (2002 + i, i % 8, 0, PDS_NEXT_HEADER_ROCE);
+        uint16_t id = device->AllocatePdc (2002 + i, i % 8, 0, PDSNextHeader::PDS_NEXT_HEADER_ROCE);
         if (id != 0)
         {
             pdcIds.push_back (id);
@@ -541,11 +541,11 @@ SoftUeValidator::ValidateErrorHandling ()
     Ptr<SoftUeNetDevice> device = m_devices[0];
 
     // 测试8.1: 无效PDC释放
-    bool invalidRelease = !device->ReleasePdc (99999);  // 应该失败
+    bool invalidRelease = !device->ReleasePdc (65535);  // 应该失败 (uint16_t max value)
     LogTest ("无效PDC处理", invalidRelease, "正确处理无效PDC释放");
 
     // 测试8.2: 边界条件测试
-    uint16_t validPdc = device->AllocatePdc (4001, 0, 0, PDS_NEXT_HEADER_ROCE);
+    uint16_t validPdc = device->AllocatePdc (4001, 0, 0, PDSNextHeader::PDS_NEXT_HEADER_ROCE);
     bool boundaryTest = (validPdc != 0);
     LogTest ("边界条件", boundaryTest, "边界条件处理正确");
 
@@ -573,7 +573,7 @@ SoftUeValidator::ValidatePerformanceMetrics ()
     {
         if (!m_devices.empty ())
         {
-            uint16_t pdcId = m_devices[0]->AllocatePdc (5000 + i, 0, 0, PDS_NEXT_HEADER_ROCE);
+            uint16_t pdcId = m_devices[0]->AllocatePdc (5000 + i, 0, 0, PDSNextHeader::PDS_NEXT_HEADER_ROCE);
             if (pdcId != 0)
             {
                 m_devices[0]->ReleasePdc (pdcId);
@@ -627,7 +627,8 @@ SoftUeValidator::CreateTestDevice (uint32_t fepId)
     Ptr<Node> node = CreateObject<Node> ();
 
     // 创建设备
-    Ptr<SoftUeNetDevice> device = helper.Install (node);
+    NetDeviceContainer devices = helper.Install (node);
+    Ptr<SoftUeNetDevice> device = DynamicCast<SoftUeNetDevice> (devices.Get (0));
 
     // 配置设备
     SoftUeConfig config;
@@ -653,7 +654,7 @@ SoftUeValidator::SendTestPacket (Ptr<SoftUeNetDevice> src, Ptr<SoftUeNetDevice> 
     try
     {
         // 分配PDC
-        uint16_t pdcId = src->AllocatePdc (dst->GetConfiguration ().localFep, 0, 0, PDS_NEXT_HEADER_ROCE);
+        uint16_t pdcId = src->AllocatePdc (dst->GetConfiguration ().localFep, 0, 0, PDSNextHeader::PDS_NEXT_HEADER_ROCE);
         if (pdcId == 0)
         {
             return false;

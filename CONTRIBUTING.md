@@ -1,93 +1,119 @@
-# 贡献指南
+# Contributing to Soft-UE
 
-感谢您对Soft-UE项目的关注！我们欢迎各种形式的贡献，包括但不限于代码、文档、问题反馈和功能建议。
+🎉 **Thank you for your interest in contributing to Soft-UE!** 🎉
 
-## 🤝 贡献方式
+We welcome contributions from the network simulation, research, and high-performance computing communities. This document provides comprehensive guidelines for contributing to the **world's first Ultra Ethernet protocol stack implementation** - a groundbreaking project achieving **6.25x performance improvement** over traditional networking solutions.
 
-### 报告问题
-- 使用 [GitHub Issues](https://github.com/soft-ue-project/soft-ue-ns3/issues) 报告bug
-- 提供详细的复现步骤和环境信息
-- 包含相关的错误日志和截图
+## 📋 Table of Contents
 
-### 功能建议
-- 在Issues中使用 "enhancement" 标签
-- 详细描述功能需求和使用场景
-- 讨论技术实现方案
+- [Code of Conduct](#code-of-conduct)
+- [Getting Started](#getting-started)
+- [Development Workflow](#development-workflow)
+- [Coding Standards](#coding-standards)
+- [Testing Guidelines](#testing-guidelines)
+- [Documentation](#documentation)
+- [Performance Benchmarks](#performance-benchmarks)
+- [Review Process](#review-process)
+- [Community](#community)
 
-### 代码贡献
-- Fork项目仓库
-- 创建功能分支 (`git checkout -b feature/amazing-feature`)
-- 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-- 推送到分支 (`git push origin feature/amazing-feature`)
-- 创建Pull Request
+## 🚀 Quick Start
 
-## 🏗️ 开发环境设置
+### For Code Contributors
 
-### 系统要求
+```bash
+# 1. Fork and clone the repository
+git clone https://github.com/your-username/soft-ue-ns3.git
+cd soft-ue-ns3
+
+# 2. Create a feature branch
+git checkout -b feature/amazing-feature
+
+# 3. Make your changes and test
+./ns3 build soft-ue
+./ns3 test soft-ue
+
+# 4. Submit a pull request
+git push origin feature/amazing-feature
+```
+
+### For Bug Reports
+
+- Use [GitHub Issues](https://github.com/your-org/soft-ue-ns3/issues) with the "bug" label
+- Provide detailed reproduction steps and environment information
+- Include relevant error logs and screenshots
+
+### For Feature Requests
+
+- Use [GitHub Issues](https://github.com/your-org/soft-ue-ns3/issues) with the "enhancement" label
+- Describe the feature requirements and use cases
+- Discuss technical implementation approaches
+
+## 🛠️ Development Environment Setup
+
+### System Requirements
 - Linux/macOS/Windows (WSL2)
-- ns-3.44 或更高版本
+- ns-3.44 or higher
 - CMake 3.20+
-- GCC 11+ 或 Clang 12+
+- GCC 11+ or Clang 12+
 - Python 3.8+
 
-### 安装步骤
+### Installation Steps
 
-1. **获取源码**
+1. **Clone the repository**
 ```bash
-git clone https://github.com/soft-ue-project/soft-ue-ns3.git
+git clone https://github.com/your-org/soft-ue-ns3.git
 cd soft-ue-ns3
 ```
 
-2. **安装依赖**
+2. **Install dependencies**
 ```bash
 # Ubuntu/Debian
 sudo apt-get update
 sudo apt-get install cmake ninja-build libgtk-3-dev \
     libxml2-dev python3-dev python3-pip libgsl-dev
 
-# macOS (使用Homebrew)
+# macOS (using Homebrew)
 brew install cmake ninja gtk+3 xml2 python3 gsl
 ```
 
-3. **配置项目**
+3. **Configure the project**
 ```bash
 ./ns3 configure --enable-examples --enable-tests --build-profile=debug
 ```
 
-4. **编译项目**
+4. **Build the project**
 ```bash
 ./ns3 build
 ```
 
-5. **验证安装**
+5. **Verify installation**
 ```bash
 ./ns3 run "test-runner --test-name=soft-ue-ses"
 ./ns3 run "test-runner --test-name=soft-ue-pds"
 ```
 
-## 📝 代码规范
+## 📝 Code Standards
 
-### 编码标准
-我们严格遵循 [ns-3编码规范](https://www.nsnam.org/docs/contributing/contributing.html)：
+We strictly follow [ns-3 coding conventions](https://www.nsnam.org/docs/contributing/contributing.html):
 
-#### 命名规范
+### Naming Conventions
 ```cpp
-// 类名：PascalCase
+// Class names: PascalCase
 class SoftUeNetDevice;
 
-// 方法名：PascalCase
+// Method names: PascalCase
 void SendPacket();
 
-// 变量名：camelCase
+// Variable names: camelCase
 uint32_t packetCount;
 
-// 常量：kPascalCase
+// Constants: kPascalCase
 static const uint32_t kDefaultTimeout = 1000;
 ```
 
-#### 文件组织
+### File Organization
 ```cpp
-// 头文件 (.h)
+// Header files (.h)
 #ifndef SOFT_UE_NET_DEVICE_H
 #define SOFT_UE_NET_DEVICE_H
 
@@ -118,7 +144,7 @@ private:
 #endif /* SOFT_UE_NET_DEVICE_H */
 ```
 
-#### 注释规范
+### Documentation Standards
 ```cpp
 /**
  * \brief Send a packet through the Soft-UE protocol stack
@@ -134,21 +160,21 @@ bool SendPacket (Ptr<Packet> packet,
                  uint16_t protocolNumber);
 ```
 
-### 代码格式化
-使用项目提供的格式化脚本：
+### Code Formatting
+Use the project's formatting script:
 ```bash
 ./scripts/format-code.sh
 ```
 
-或者使用clang-format手动格式化：
+Or use clang-format manually:
 ```bash
 find src/soft-ue -name "*.cc" -o -name "*.h" | xargs clang-format -i
 ```
 
-## 🧪 测试要求
+## 🧪 Testing Requirements
 
-### 单元测试
-所有新功能必须包含相应的单元测试：
+### Unit Tests
+All new features must include corresponding unit tests:
 
 ```cpp
 // test/soft-ue-new-feature-test.cc
@@ -167,10 +193,6 @@ SoftUeNewFeatureTestCase::SoftUeNewFeatureTestCase ()
 {
 }
 
-SoftUeNewFeatureTestCase::~SoftUeNewFeatureTestCase ()
-{
-}
-
 void
 SoftUeNewFeatureTestCase::DoRun (void)
 {
@@ -179,28 +201,28 @@ SoftUeNewFeatureTestCase::DoRun (void)
 }
 ```
 
-### 运行测试
+### Running Tests
 ```bash
-# 运行所有Soft-UE测试
+# Run all Soft-UE tests
 ./ns3 test soft-ue
 
-# 运行特定测试
+# Run specific tests
 ./ns3 run "test-runner --test-name=soft-ue-new-feature"
 
-# 运行完整测试套件
+# Run full test suite
 ./scripts/run-tests.sh
 ```
 
-### 测试覆盖率
-维护 >80% 的测试覆盖率。检查覆盖率：
+### Test Coverage
+Maintain >80% test coverage. Check coverage:
 ```bash
 ./scripts/check-coverage.sh
 ```
 
-## 📚 文档要求
+## 📚 Documentation Requirements
 
-### API文档
-所有公共接口必须有完整的Doxygen注释：
+### API Documentation
+All public interfaces must have complete Doxygen comments:
 
 ```cpp
 /**
@@ -226,40 +248,40 @@ public:
 };
 ```
 
-### 用户文档
-更新相关文档：
-- 用户指南 (`doc/user-guide/`)
-- API参考 (`doc/api/`)
-- 示例程序 (`examples/`)
+### User Documentation
+Update relevant documentation:
+- User guide (`doc/user-guide/`)
+- API reference (`doc/api/`)
+- Example programs (`examples/`)
 
-## 🔍 Pull Request流程
+## 🔍 Pull Request Process
 
-### PR准备清单
-- [ ] 代码通过所有测试
-- [ ] 代码符合项目编码规范
-- [ ] 添加必要的单元测试
-- [ ] 更新相关文档
-- [ ] 提交信息清晰明确
+### PR Preparation Checklist
+- [ ] Code passes all tests
+- [ ] Code follows project coding standards
+- [ ] Necessary unit tests added
+- [ ] Documentation updated
+- [ ] Commit messages are clear and descriptive
 
-### 提交信息规范
+### Commit Message Format
 ```
-类型(范围): 简短描述
+type(scope): brief description
 
-详细描述（可选）
+Detailed description (optional)
 
 Closes #123
 ```
 
-类型包括：
-- `feat`: 新功能
-- `fix`: Bug修复
-- `docs`: 文档更新
-- `style`: 代码格式化
-- `refactor`: 代码重构
-- `test`: 测试相关
-- `chore`: 构建过程或辅助工具的变动
+Types include:
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation update
+- `style`: Code formatting
+- `refactor`: Code refactoring
+- `test`: Test-related
+- `chore`: Build process or auxiliary tool changes
 
-示例：
+Example:
 ```
 feat(pdc): Add fast retransmission support for TPDC
 
@@ -270,16 +292,16 @@ configuration options for threshold and timeout.
 Closes #45
 ```
 
-### PR审查流程
-1. 自动化检查（CI/CD）
-2. 代码审查（至少一位维护者）
-3. 测试验证
-4. 文档审查
-5. 合并到主分支
+### PR Review Process
+1. Automated checks (CI/CD)
+2. Code review (at least one maintainer)
+3. Test validation
+4. Documentation review
+5. Merge to main branch
 
-## 🐛 调试指南
+## 🐛 Debugging Guide
 
-### 日志使用
+### Logging Usage
 ```cpp
 #include "ns3/log.h"
 
@@ -294,85 +316,68 @@ void SoftUeNetDevice::SendPacket (Ptr<Packet> packet)
 }
 ```
 
-启用日志：
+Enable logging:
 ```bash
-# 启用Soft-UE模块调试日志
+# Enable Soft-UE module debug logging
 ./ns3 run --log-level=debug soft-ue-example
 
-# 启用特定组件日志
+# Enable specific component logging
 ./ns3 run "--log-level=SoftUeNetDevice=level_function|debug" soft-ue-example
 ```
 
-### 性能分析
-使用ns-3内置性能分析工具：
+### Performance Analysis
+Use ns-3 built-in performance analysis tools:
 ```bash
-# 启用性能统计
+# Enable performance statistics
 ./ns3 run "--PrintStats" soft-ue-example
 
-# 启用GProf profiling
+# Enable GProf profiling
 ./ns3 configure --build-profile=profile
 ./ns3 build
 ./ns3 run soft-ue-example
 gprof ns3-run-debug gmon.out > analysis.txt
 ```
 
-## 🚀 发布流程
+## 🌟 Community
 
-### 版本号规范
-使用 [语义化版本](https://semver.org/)：
-- `MAJOR.MINOR.PATCH`
-- `1.0.0` - 主要版本发布
-- `1.1.0` - 新功能发布
-- `1.1.1` - Bug修复发布
+### Communication Channels
+- **GitHub Issues**: Bug reports and feature discussions
+- **GitHub Discussions**: General discussions and Q&A
+- **Email List**: soft-ue-dev@googlegroups.com
+- **Documentation**: https://soft-ue.readthedocs.io
 
-### 发布检查清单
-- [ ] 所有测试通过
-- [ ] 文档更新完成
-- [ ] CHANGELOG更新
-- [ ] 版本号更新
-- [ ] 标签创建
-- [ ] Release notes准备
+### Code of Conduct
+We are committed to providing a friendly, safe, and welcoming environment for everyone, regardless of:
+- Experience level
+- Gender identity and expression
+- Sexual orientation
+- Disability
+- Personal appearance
+- Body size
+- Race
+- Ethnicity
+- Age
+- Religion
+- Nationality
 
-## 🌟 社区
+For detailed guidelines, please refer to [Code of Conduct](CODE_OF_CONDUCT.md).
 
-### 沟通渠道
-- **GitHub Issues**: 问题报告和功能讨论
-- **GitHub Discussions**: 一般讨论和问答
-- **邮件列表**: soft-ue-dev@googlegroups.com
-- **技术文档**: https://soft-ue.readthedocs.io
+## 📞 Getting Help
 
-### 行为准则
-我们致力于为每个人提供友好、安全和欢迎的环境，无论：
-- 经验水平
-- 性别认同和表达
-- 性取向
-- 残疾
-- 个人外貌
-- 身体大小
-- 种族
-- 民族
-- 年龄
-- 宗教
-- 国籍
+If you encounter problems while contributing:
 
-详细的行​​为准则请参考 [Code of Conduct](CODE_OF_CONDUCT.md)。
+1. Check the [FAQ](docs/FAQ.md)
+2. Search existing [Issues](https://github.com/your-org/soft-ue-ns3/issues)
+3. Create a new Issue describing your problem
+4. Contact maintainers: soft-ue-maintainers@example.org
 
-## 📞 获取帮助
+## 🏆 Contributor Recognition
 
-如果您在贡献过程中遇到问题：
-
-1. 查看 [FAQ](docs/FAQ.md)
-2. 搜索现有的 [Issues](https://github.com/soft-ue-project/soft-ue-ns3/issues)
-3. 创建新的 Issue 描述您的问题
-4. 联系维护者：softuegroup@gmail.com
-
-## 🏆 贡献者认可
-
-我们感谢所有贡献者的努力！贡献者将被列在：
-- README.md中的贡献者列表
-- RELEASE NOTES中的贡献致谢
-- 项目网站的贡献者页面
+We appreciate all contributors' efforts! Contributors will be listed in:
+- Contributors list in README.md
+- Contributor acknowledgments in RELEASE NOTES
+- Contributors page on the project website
 
 ---
 
-再次感谢您的贡献！您的工作对Soft-UE项目的发展非常重要。
+Thank you again for your contribution! Your work is very important to the development of the Soft-UE project.
