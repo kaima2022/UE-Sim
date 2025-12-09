@@ -33,22 +33,12 @@ build_lib(
   )
 
 # Add Soft-UE test executables
-# Module tests - Test core Soft-UE modules
-add_executable(ses-manager-test test/modules/ses-manager-test.cc)
+# Core tests - Test essential Soft-UE functionality
+add_executable(ses-manager-test test/ses-manager-test.cc)
 target_link_libraries(ses-manager-test ${libsoft-ue})
 
-add_executable(pds-manager-test test/modules/pds-manager-test.cc)
+add_executable(pds-manager-test test/pds-manager-test.cc)
 target_link_libraries(pds-manager-test ${libsoft-ue})
 
-add_executable(pdc-management-test test/modules/pdc-management-test.cc)
-target_link_libraries(pdc-management-test ${libsoft-ue})
-
-# End-to-end tests - Test complete Soft-UE functionality
-add_executable(basic-communication-test test/end-to-end/basic-communication-test.cc)
-target_link_libraries(basic-communication-test ${libsoft-ue} ${libmobility})
-
-add_executable(simple-performance-test test/end-to-end/simple-performance-test.cc)
-target_link_libraries(simple-performance-test ${libsoft-ue})
-
-add_executable(integration-test test/end-to-end/integration-test.cc)
-target_link_libraries(integration-test ${libsoft-ue} ${libmobility})
+add_executable(pds-full-test test/pds-full-test.cc)
+target_link_libraries(pds-full-test ${libsoft-ue} ${libnetwork} ${libapplications} ${libinternet} ${libtraffic-control} ${libmobility})
