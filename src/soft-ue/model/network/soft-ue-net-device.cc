@@ -63,6 +63,10 @@ SoftUeNetDevice::SoftUeNetDevice ()
   // Initialize random number generator
   m_rng = CreateObject<UniformRandomVariable> ();
 
+  // Initialize ns-3 receive queue
+  m_receiveQueue = CreateObject<DropTailQueue<Packet>> ();
+  // Use default queue configuration (size is set by MaxSize attribute)
+
   // Set default configuration
   m_config = SoftUeConfig ();
   m_statistics = SoftUeStats ();
@@ -84,10 +88,10 @@ SoftUeNetDevice::DoDispose (void)
       Simulator::Cancel (m_statsEventId);
     }
 
-  // Clear receive queue
-  while (!m_receiveQueue.empty ())
+  // Clear receive queue using ns-3 interface
+  if (m_receiveQueue)
     {
-      m_receiveQueue.pop ();
+      m_receiveQueue->Flush ();
     }
 
   // Clear PDCs
@@ -442,8 +446,14 @@ SoftUeNetDevice::ReceivePacket (Ptr<Packet> packet, uint32_t sourceFep, uint32_t
       return;
     }
 
-  // Add to receive queue for processing
-  m_receiveQueue.push (packet);
+  // Add to receive queue for processing using ns-3 interface
+  bool enqueued = m_receiveQueue->Enqueue (packet);
+  if (!enqueued)
+    {
+      NS_LOG_WARN ("Receive queue full, dropping packet");
+      m_statistics.droppedPackets++;
+      return;
+    }
 
   // Update statistics
   m_statistics.totalPacketsReceived++;
@@ -553,10 +563,13 @@ SoftUeNetDevice::ProcessReceiveQueue (void)
 {
   NS_LOG_FUNCTION (this);
 
-  while (!m_receiveQueue.empty ())
+  while (m_receiveQueue->GetNPackets () > 0)
     {
-      Ptr<Packet> packet = m_receiveQueue.front ();
-      m_receiveQueue.pop ();
+      Ptr<Packet> packet = m_receiveQueue->Dequeue ();
+      if (!packet)
+        {
+          break;
+        }
 
       // Call receive callback if set
       if (!m_receiveCallback.IsNull ())

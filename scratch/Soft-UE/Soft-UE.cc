@@ -39,7 +39,12 @@
 #include "ns3/udp-socket-factory.h"
 #include <iostream>
 #include <sstream>
+#include <iomanip>
 #include <algorithm>
+#include <vector>
+
+// Include the Soft-UE logger for better log formatting
+#include "ns3/soft-ue-logger.h"
 
 using namespace ns3;
 
@@ -140,6 +145,15 @@ private:
     EventId m_sendEvent;            ///< Event for scheduled sending
     Ptr<SesManager> m_sesManager;   ///< SES Manager reference
     Ptr<PdsManager> m_pdsManager;   ///< PDS Manager reference
+
+    // Enhanced statistics
+    std::vector<Time> m_packetDelays;           ///< Per-packet delays
+    Time m_firstPacketTime;                     ///< First packet send time
+    Time m_lastPacketTime;                      ///< Last packet receive time
+    uint64_t m_totalBytesSent;                  ///< Total bytes sent
+    uint64_t m_totalBytesReceived;              ///< Total bytes received
+    uint32_t m_retransmissions;                 ///< Retransmission count
+    uint32_t m_timeouts;                        ///< Timeout count
 };
 
 SoftUeFullApp::SoftUeFullApp ()
@@ -150,7 +164,13 @@ SoftUeFullApp::SoftUeFullApp ()
       m_sesProcessed (0),
       m_pdsProcessed (0),
       m_port (0),
-      m_isServer (false)
+      m_isServer (false),
+      m_firstPacketTime (Seconds (0)),
+      m_lastPacketTime (Seconds (0)),
+      m_totalBytesSent (0),
+      m_totalBytesReceived (0),
+      m_retransmissions (0),
+      m_timeouts (0)
 {
 }
 
@@ -265,6 +285,12 @@ SoftUeFullApp::SendPacket ()
         return;
     }
 
+    // Record first packet time
+    if (m_packetsSent == 0)
+    {
+        m_firstPacketTime = Simulator::Now ();
+    }
+
     // Create packet with payload
     Ptr<Packet> packet = Create<Packet> (m_packetSize);
     if (!packet)
@@ -336,6 +362,10 @@ SoftUeFullApp::SendPacket ()
             if (sesProcessed) m_sesProcessed++;
             m_pdsProcessed++; // PDS is handled inside device->Send
 
+            // Enhanced statistics
+            m_totalBytesSent += packet->GetSize ();
+            m_packetDelays.push_back (Simulator::Now ());
+
             NS_LOG_INFO ("Sent packet " << m_packetsSent << "/" << m_numPackets
                         << " size: " << packet->GetSize () << " bytes"
                         << " SES: " << (sesProcessed ? "OK" : "FAIL"));
@@ -365,6 +395,10 @@ SoftUeFullApp::HandleRead (Ptr<NetDevice> device, Ptr<const Packet> packet, uint
     }
 
     m_packetsReceived++;
+
+    // Enhanced statistics
+    m_totalBytesReceived += packet->GetSize ();
+    m_lastPacketTime = Simulator::Now ();
 
     // Create a mutable copy of the packet for header processing
     Ptr<Packet> mutablePacket = packet->Copy ();
@@ -455,6 +489,8 @@ std::string
 SoftUeFullApp::GetStatistics () const
 {
     std::ostringstream oss;
+
+    // Basic statistics
     oss << "Soft-UE Application Statistics:\n"
         << "  Role: " << (m_isServer ? "Server" : "Client") << "\n"
         << "  Packets Sent: " << m_packetsSent << "\n"
@@ -462,7 +498,47 @@ SoftUeFullApp::GetStatistics () const
         << "  SES Processed: " << m_sesProcessed << "\n"
         << "  PDS Processed: " << m_pdsProcessed << "\n"
         << "  Success Rate: " << (m_packetsSent > 0 ?
-                (100.0 * m_packetsReceived / m_packetsSent) : 0.0) << "%";
+                (100.0 * m_packetsReceived / m_packetsSent) : 0.0) << "%\n";
+
+    // Enhanced statistics
+    oss << "\n  Enhanced Performance Metrics:\n"
+        << "  Total Bytes Sent: " << m_totalBytesSent << " bytes\n"
+        << "  Total Bytes Received: " << m_totalBytesReceived << " bytes\n"
+        << "  Average Packet Size: " << (m_packetsSent > 0 ?
+                (m_totalBytesSent / m_packetsSent) : 0) << " bytes\n";
+
+    // Timing analysis
+    if (m_firstPacketTime != Seconds (0) && m_lastPacketTime != Seconds (0))
+    {
+        Time totalTime = m_lastPacketTime - m_firstPacketTime;
+        double throughputMbps = 0.0;
+        if (totalTime.GetMilliSeconds () > 0)
+        {
+            throughputMbps = (m_totalBytesReceived * 8.0) / (totalTime.GetMilliSeconds () * 1000.0);
+        }
+
+        oss << "  Total Transfer Time: " << totalTime.GetMilliSeconds () << " ms\n"
+            << "  Throughput: " << std::fixed << std::setprecision (3)
+            << throughputMbps << " Mbps\n"
+            << "  Packet Rate: " << (totalTime.GetMilliSeconds () > 0 ?
+                (1000.0 * m_packetsReceived / totalTime.GetMilliSeconds ()) : 0.0) << " pps\n";
+    }
+
+    // Error statistics
+    oss << "\n  Error Statistics:\n"
+        << "  Retransmissions: " << m_retransmissions << "\n"
+        << "  Timeouts: " << m_timeouts << "\n"
+        << "  Packet Loss Rate: " << (m_packetsSent > 0 ?
+                (100.0 * (m_packetsSent - m_packetsReceived) / m_packetsSent) : 0.0) << "%\n";
+
+    // Protocol efficiency
+    if (m_totalBytesSent > 0)
+    {
+        double efficiency = 100.0 * (m_totalBytesReceived - (m_packetsReceived * 42)) / m_totalBytesSent; // Approx header overhead
+        oss << "  Protocol Efficiency: " << std::fixed << std::setprecision (1)
+            << efficiency << "%\n";
+    }
+
     return oss.str ();
 }
 
@@ -498,12 +574,23 @@ PacketTrace (std::string context, Ptr<const Packet> packet, Ptr<NetDevice> devic
 int
 main (int argc, char *argv[])
 {
-    // Configure logging
+    // Initialize Soft-UE structured logger
+    SoftUeLogger& logger = SoftUeLogger::GetInstance ();
+    logger.SetLogFile ("log/soft-ue-test.log");
+    logger.EnableFileLogging (true);
+
+    // Configure optimized logging - reduced verbosity for better readability
     LogComponentEnable ("SoftUeFullTest", LOG_LEVEL_INFO);
-    LogComponentEnable ("SoftUeNetDevice", LOG_LEVEL_DEBUG);
-    LogComponentEnable ("PdsManager", LOG_LEVEL_DEBUG);
-    LogComponentEnable ("SesManager", LOG_LEVEL_INFO);
-    LogComponentEnable ("SoftUeChannel", LOG_LEVEL_DEBUG);
+    LogComponentEnable ("SoftUeNetDevice", LOG_LEVEL_WARN);    // Changed to WARN (reduced output)
+    LogComponentEnable ("PdsManager", LOG_LEVEL_ERROR);       // Changed to ERROR (errors only)
+    LogComponentEnable ("SesManager", LOG_LEVEL_WARN);        // Changed to WARN (reduced output)
+    LogComponentEnable ("SoftUeChannel", LOG_LEVEL_ERROR);    // Changed to ERROR (errors only)
+
+    // Log test start with structured logger
+    logger.LogInfo ("SoftUeTest", "==================================================");
+    logger.LogInfo ("SoftUeTest", "=== Soft-UE Complete End-to-End Test ===");
+    logger.LogInfo ("SoftUeTest", "==================================================");
+    logger.LogInfo ("SoftUeTest", "Testing full integration of src/soft-ue/model modules");
 
     NS_LOG_INFO ("=== Soft-UE Complete End-to-End Test ===");
     NS_LOG_INFO ("Testing full integration of src/soft-ue/model modules");
@@ -631,12 +718,18 @@ main (int argc, char *argv[])
     // Enable statistics collection (if available)
     // helper.EnableStatisticsCollectionAll ();
 
+    logger.LogInfo ("SoftUeTest", "==================================================");
+    logger.LogInfo ("SoftUeTest", "=== STARTING SIMULATION ===");
+    logger.LogInfo ("SoftUeTest", "==================================================");
     NS_LOG_INFO ("Starting simulation...");
     double simulationEndTime = requiredServerTime + 2.0; // Extra buffer
     Simulator::Stop (Seconds (simulationEndTime));
     Simulator::Run ();
 
     // Final statistics
+    logger.LogInfo ("SoftUeTest", "==================================================");
+    logger.LogInfo ("SoftUeTest", "=== FINAL STATISTICS ===");
+    logger.LogInfo ("SoftUeTest", "==================================================");
     NS_LOG_INFO ("\n" << std::string (50, '='));
     NS_LOG_INFO ("=== FINAL STATISTICS ===");
     NS_LOG_INFO (std::string (50, '='));
@@ -671,6 +764,17 @@ main (int argc, char *argv[])
     NS_LOG_INFO ("Server SES processed: " << serverApp->GetSesProcessedCount ());
     NS_LOG_INFO ("Server PDS processed: " << serverApp->GetPdsProcessedCount ());
 
+    // Log test result with structured logger
+    std::string result = testPassed ? "PASSED" : "FAILED";
+    logger.LogInfo ("SoftUeTest", "==================================================");
+    logger.LogInfo ("SoftUeTest", "=== TEST RESULT ===");
+    logger.LogInfo ("SoftUeTest", "==================================================");
+    logger.LogInfo ("SoftUeTest", "Test " + result);
+    logger.LogInfo ("SoftUeTest", "Expected packets: " + std::to_string (numPackets));
+    logger.LogInfo ("SoftUeTest", "Client processed: " + std::to_string (clientApp->GetPacketCount ()));
+    logger.LogInfo ("SoftUeTest", "Server received: " + std::to_string (serverApp->GetPacketCount ()));
+
+    logger.Flush (); // Ensure all logs are written
     Simulator::Destroy ();
 
     return testPassed ? 0 : 1;

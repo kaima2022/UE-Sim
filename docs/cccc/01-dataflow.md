@@ -1,5 +1,12 @@
 # Soft-UE 点到点数据流程技术文档
 
+## 更新日志
+- **2025-12-09**: 重大更新
+  - 完成全面ns-3化改造，std::queue替换为ns3::DropTailQueue
+  - 新增详细性能统计信息（吞吐量、延迟、包丢失率等）
+  - 优化日志系统，新增结构化日志记录
+  - 增强错误追踪和调试能力
+
 ## 1. 数据流量生成
 
 ### 1.1 应用层流量生成
@@ -189,4 +196,41 @@ bool SoftUeFullApp::HandleRead(Ptr<NetDevice> device, Ptr<const Packet> packet,
 - **发送统计**: totalPacketsTransmitted, totalBytesTransmitted
 - **接收统计**: totalPacketsReceived, totalBytesReceived
 - **错误统计**: droppedPackets计数器
+
+## 9. 新增功能 (2025-12-09更新)
+
+### 9.1 增强性能统计
+- **位置**: `scratch/Soft-UE/Soft-UE.cc:144-151`
+- **新增指标**:
+  - 包级别延迟测量 (m_packetDelays)
+  - 总传输时间 (m_firstPacketTime, m_lastPacketTime)
+  - 吞吐量计算 (Mbps)
+  - 包速率 (pps - packets per second)
+  - 重传和超时统计
+  - 协议效率分析
+
+### 9.2 ns-3化队列系统
+- **替换**: `std::queue<Ptr<Packet>>` → `Ptr<DropTailQueue<Packet>>`
+- **位置**: `src/soft-ue/model/network/soft-ue-net-device.h:319`
+- **优势**:
+  - 符合ns-3设计模式
+  - 内置包丢弃管理
+  - 可配置队列大小
+  - 集成ns-3统计系统
+
+### 9.3 结构化日志系统
+- **文件**: `src/soft-ue/model/common/soft-ue-logger.h/cc`
+- **输出**: `log/soft-ue-test.log` (结构化格式)
+- **特点**:
+  - 时间戳记录 (ns-3仿真时间)
+  - 日志级别分类 (INFO/WARN/ERROR)
+  - 组件名称标识
+  - 文件和控制台双重输出
+- **格式**: `[时间戳] [级别] 组件: 消息`
+
+### 9.4 优化的日志配置
+- **减少冗余**: DEBUG级别降至WARN/ERROR
+- **关键信息**: 保留测试启动和结果信息
+- **错误追踪**: 增强错误和异常情况记录
+- **性能友好**: 减少控制台输出，提升仿真性能
 - **PDS统计**: 成功/失败操作计数

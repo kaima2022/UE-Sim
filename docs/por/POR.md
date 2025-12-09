@@ -1,4 +1,4 @@
-<!-- Generated on 2025-12-09T09:00:55+00:00 by por_manager; template=present -->
+<!-- Generated on 2025-12-09T11:43:32+00:00 by por_manager; template=present -->
 
 # POR - Strategic Board
 
@@ -35,4 +35,12 @@
 ## Maintenance & Change Log (append-only, one line each)
 - YYYY-MM-DD HH:MM | who | reason (one line) | evidence (one line)
 
-<!-- Generated on 2025-12-09T09:00:55+00:00 by por_manager.ensure_por 0.1.1 ; template_sha1=7342dc47bce1342e40656c7ab0c32577632e15a2 -->
+<!-- Generated on 2025-12-09T11:43:32+00:00 by por_manager.ensure_por 0.1.1 ; template_sha1=7342dc47bce1342e40656c7ab0c32577632e15a2 -->
+
+## Aux Delegations - Meta-Review/Revise (strategic)
+Strategic only: list meta-review/revise items offloaded to Aux.
+Keep each item compact: what (one line), why (one line), optional acceptance.
+Tactical Aux subtasks now live in each task.yaml under 'Aux (tactical)'; do not list them here.
+After integrating Aux results, either remove the item or mark it done.
+- [ ] <meta-review — why — acceptance(optional)>
+- [ ] <revise — why — acceptance(optional)>

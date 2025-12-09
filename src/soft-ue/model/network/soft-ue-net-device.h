@@ -41,6 +41,7 @@
 #include "ns3/random-variable-stream.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv6-address.h"
+#include "ns3/drop-tail-queue.h"
 #include <map>
 #include <vector>
 #include "../common/transport-layer.h"
@@ -315,7 +316,7 @@ private:
     EventId m_statsEventId;                      ///< Statistics update event ID
 
     // Packet processing
-    std::queue<Ptr<Packet>> m_receiveQueue;       ///< Received packet queue
+    Ptr<DropTailQueue<Packet>> m_receiveQueue;   ///< Received packet queue (ns-3 Queue)
     std::map<uint16_t, Ptr<PdcBase>> m_pdcs;     ///< Active PDCs
 
     // Random variables

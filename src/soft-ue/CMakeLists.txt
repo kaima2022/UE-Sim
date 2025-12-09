@@ -2,6 +2,7 @@ build_lib(
   LIBNAME soft-ue
   SOURCE_FILES
     helper/soft-ue-helper.cc
+    model/common/soft-ue-logger.cc
     model/ses/ses-manager.cc
     model/ses/operation-metadata.cc
     model/ses/msn-entry.cc
@@ -18,6 +19,7 @@ build_lib(
     helper/soft-ue-helper.h
     model/common/transport-layer.h
     model/common/soft-ue-packet-tag.h
+    model/common/soft-ue-logger.h
     model/ses/ses-manager.h
     model/ses/operation-metadata.h
     model/ses/msn-entry.h

@@ -1,0 +1,29 @@
+id: T001
+name: Soft-UE ns-3 Module Integration Testing
+goal: 完成Soft-UE ns-3模块的完整集成测试和优化，实现1对1通信场景，优化日志系统，确保所有功能正常工作
+status: active
+steps:
+  - id: S1
+    name: 检查模块串联完整性
+    done: 验证所有src/soft-ue/model模块已正确串联，实现原型系统所有功能
+    status: pending
+  - id: S2
+    name: 实现1对1通信场景
+    done: 完整的1对1通信场景正常工作
+    status: pending
+  - id: S3
+    name: 添加详细统计信息
+    done: 实现详细的性能统计和数据收集
+    status: pending
+  - id: S4
+    name: 全面ns-3化改造
+    done: 所有组件使用ns-3思想，队列替换为ns3::Queue
+    status: pending
+  - id: S5
+    name: 优化日志系统
+    done: 优化log/soft-ue.log，提高可读性和错误排查能力
+    status: pending
+  - id: S6
+    name: 更新项目文档
+    done: 同步更新docs/cccc下的数据流、问题解决方案和图表文档
+    status: pending
