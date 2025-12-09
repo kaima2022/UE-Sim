@@ -4,6 +4,7 @@ build_lib(
     helper/soft-ue-helper.cc
     model/ses/ses-manager.cc
     model/ses/operation-metadata.cc
+    model/ses/msn-entry.cc
     model/pds/pds-manager.cc
     model/pds/pds-header.cc
     model/pds/pds-statistics.cc

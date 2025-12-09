@@ -32,6 +32,13 @@ SesManager::GetInstanceTypeId (void) const
 }
 
 SesManager::SesManager ()
+    : m_totalSendRequests (0),
+      m_totalReceiveRequests (0),
+      m_totalResponses (0),
+      m_totalSuccessfulRequests (0),
+      m_totalErrors (0),
+      m_totalPacketsGenerated (0),
+      m_totalPacketsConsumed (0)
 {
     NS_LOG_FUNCTION (this);
     NS_LOG_DEBUG ("SesManager created");
@@ -113,8 +120,16 @@ SesManager::ProcessSendRequest (Ptr<ExtendedOperationMetadata> metadata)
         return false;
     }
 
-    NS_LOG_DEBUG ("Processing send request");
+    NS_LOG_DEBUG ("Processing send request for operation");
     m_totalSendRequests++;
+
+    // Validate operation metadata
+    if (!ValidateOperationMetadata (metadata))
+    {
+        NS_LOG_ERROR ("Invalid operation metadata");
+        m_totalErrors++;
+        return false;
+    }
 
     // Create SES header and forward to PDS
     SesPdsRequest sesRequest = InitializeSesHeader (metadata);
@@ -126,11 +141,30 @@ SesManager::ProcessSendRequest (Ptr<ExtendedOperationMetadata> metadata)
         return false;
     }
 
-    // For now, just acknowledge success without actual processing
-    // TODO: Implement full processing logic
-    NS_LOG_DEBUG ("Send request processed successfully");
+    // Add entry to MSN table for tracking
+    uint64_t messageId = GenerateMessageId (metadata);
+    uint32_t estimatedSize = 1024; // Default 1KB estimate
+    if (!m_msnTable->AddEntry (messageId, 0, estimatedSize))
+    {
+        NS_LOG_WARN ("Failed to add MSN entry for message " << messageId);
+    }
+    sesRequest.rod_context = messageId;
 
-    return true;
+    // Forward request to PDS manager
+    bool success = m_pdsManager->ProcessSesRequest (sesRequest);
+
+    if (success)
+    {
+        NS_LOG_INFO ("Send request processed successfully");
+        m_totalSuccessfulRequests++;
+    }
+    else
+    {
+        NS_LOG_ERROR ("PDS manager failed to process send request");
+        m_totalErrors++;
+    }
+
+    return success;
 }
 
 bool
@@ -241,6 +275,7 @@ SesManager::ResetStatistics (void)
     m_totalSendRequests = 0;
     m_totalReceiveRequests = 0;
     m_totalResponses = 0;
+    m_totalSuccessfulRequests = 0;
     m_totalErrors = 0;
     m_totalPacketsGenerated = 0;
     m_totalPacketsConsumed = 0;
@@ -447,6 +482,46 @@ SesManager::LogError (const std::string& function, const std::string& error) con
 {
     NS_LOG_ERROR (function << ": " << error);
     m_errorTrace (function + ": " + error);
+}
+
+bool
+SesManager::ValidateOperationMetadata (Ptr<ExtendedOperationMetadata> metadata) const
+{
+    NS_LOG_FUNCTION (this << metadata);
+
+    if (!metadata)
+    {
+        NS_LOG_WARN ("ValidateOperationMetadata: metadata is null");
+        return false;
+    }
+
+    // Use the built-in validation
+    if (!metadata->IsValid ())
+    {
+        NS_LOG_WARN ("Extended operation metadata is not valid");
+        return false;
+    }
+
+    // Validate source endpoint
+    uint32_t srcNodeId = metadata->GetSourceNodeId ();
+    uint16_t srcEndpointId = metadata->GetSourceEndpointId ();
+    if (srcNodeId == 0 || srcEndpointId == 0)
+    {
+        NS_LOG_WARN ("Invalid source endpoint: NodeId=" << srcNodeId << ", EndpointId=" << srcEndpointId);
+        return false;
+    }
+
+    // Validate destination endpoint
+    uint32_t dstNodeId = metadata->GetDestinationNodeId ();
+    uint16_t dstEndpointId = metadata->GetDestinationEndpointId ();
+    if (dstNodeId == 0 || dstEndpointId == 0)
+    {
+        NS_LOG_WARN ("Invalid destination endpoint: NodeId=" << dstNodeId << ", EndpointId=" << dstEndpointId);
+        return false;
+    }
+
+    NS_LOG_DEBUG ("Operation metadata validation successful");
+    return true;
 }
 
 } // namespace ns3

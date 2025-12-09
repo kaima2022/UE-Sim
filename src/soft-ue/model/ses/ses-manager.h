@@ -242,6 +242,7 @@ private:
     mutable uint64_t m_totalSendRequests;       ///< Total send requests processed
     mutable uint64_t m_totalReceiveRequests;    ///< Total receive requests processed
     mutable uint64_t m_totalResponses;          ///< Total responses processed
+    mutable uint64_t m_totalSuccessfulRequests; ///< Total successful requests processed
     mutable uint64_t m_totalErrors;             ///< Total errors encountered
     mutable uint64_t m_totalPacketsGenerated;   ///< Total packets generated
     mutable uint64_t m_totalPacketsConsumed;     ///< Total packets consumed
@@ -333,6 +334,13 @@ private:
      * @param error Error message
      */
     void LogError (const std::string& function, const std::string& error) const;
+
+    /**
+     * @brief Validate operation metadata
+     * @param metadata Operation metadata to validate
+     * @return true if metadata is valid
+     */
+    bool ValidateOperationMetadata (Ptr<ExtendedOperationMetadata> metadata) const;
 };
 
 } // namespace ns3

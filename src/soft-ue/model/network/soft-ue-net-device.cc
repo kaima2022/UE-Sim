@@ -582,9 +582,13 @@ SoftUeNetDevice::UpdateStatistics (void)
       if (deltaTime > Seconds (0))
         {
           double deltaTimeSeconds = deltaTime.GetSeconds ();
-          if (deltaTimeSeconds > 0)
+          if (deltaTimeSeconds > 0.001) // Avoid division by very small numbers
             {
               m_statistics.throughput = (m_statistics.totalBytesTransmitted * 8.0) / deltaTimeSeconds / 1e6; // Mbps
+            }
+          else
+            {
+              m_statistics.throughput = 0.0; // Default if time interval too small
             }
         }
     }
