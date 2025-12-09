@@ -9,6 +9,7 @@
 如需生成文档，放在/home/makai/Soft-UE-ns3/docs/cccc下，禁止生成过多文档，不必要的文档及时清理。
 
 ## 优化点
+0. 关键：因为ns-3是离散事件仿真器，检查各位置状态机是否设置，是否设置合理。比如在状态机为busy的时候，禁止操作（调度等）。
 
 1. 检查是否将所有 `src/soft-ue/model` 模块串联，检查是否实现了`/home/makai/Soft-UE` 原型系统的所有功能。
 
@@ -28,6 +29,8 @@ docs/cccc/03-diagrams.md
 
 7. 继续优化/home/makai/Soft-UE-ns3/scratch/Soft-UE/Soft-UE.cc，/home/makai/Soft-UE-ns3/src/soft-ue/model。
 如需新增文件，请放在/home/makai/Soft-UE-ns3/src/soft-ue/model，其他位置不要生成代码文件。
+
+
 
 
 ## 使用方法
