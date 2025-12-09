@@ -34,4 +34,3 @@ ehthumbs.db
 Thumbs.db
 # Ignore CCCC runtime domain (Ephemeral mode)
 /.cccc/**
-docs/**
