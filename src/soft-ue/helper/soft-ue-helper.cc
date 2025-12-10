@@ -48,7 +48,16 @@ SoftUeHelper::Install (NodeContainer nodes)
       // Set device attributes
       SoftUeConfig config;
       config.address = Mac48Address::Allocate ();
-      config.localFep = i + 1;  // Use node index + 1 as FEP ID
+
+      // Extract FEP from allocated MAC address to ensure consistency with ExtractFepFromAddress
+      uint8_t buffer[6];
+      config.address.CopyTo(buffer);
+      config.localFep = (static_cast<uint16_t>(buffer[4]) << 8) | buffer[5];
+
+      // Ensure FEP is never zero (minimum value is 1)
+      if (config.localFep == 0) {
+          config.localFep = i + 1;
+      }
 
       // Initialize the device
       device->Initialize (config);

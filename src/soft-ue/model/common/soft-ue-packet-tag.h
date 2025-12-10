@@ -33,6 +33,7 @@
 #include <ns3/tag.h>
 #include <ns3/tag-buffer.h>
 #include <ns3/type-id.h>
+#include <ns3/nstime.h>
 #include "transport-layer.h"
 
 namespace ns3 {

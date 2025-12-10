@@ -2,6 +2,7 @@ build_lib(
   LIBNAME soft-ue
   SOURCE_FILES
     helper/soft-ue-helper.cc
+    model/common/soft-ue-packet-tag.cc
     model/ses/ses-manager.cc
     model/ses/operation-metadata.cc
     model/ses/msn-entry.cc
@@ -42,3 +43,6 @@ target_link_libraries(pds-manager-test ${libsoft-ue})
 
 add_executable(pds-full-test test/pds-full-test.cc)
 target_link_libraries(pds-full-test ${libsoft-ue} ${libnetwork} ${libapplications} ${libinternet} ${libtraffic-control} ${libmobility})
+
+# Install test targets
+install(TARGETS ses-manager-test pds-manager-test pds-full-test DESTINATION bin)

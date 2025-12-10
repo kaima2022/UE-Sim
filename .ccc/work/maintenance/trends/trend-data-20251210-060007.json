@@ -1,0 +1,32 @@
+{
+  "timestamp": "2025-12-10T06:00:08+08:00",
+  "report_id": "20251210-060007",
+  "node": "DESKTOP-5411LDN",
+  "system_metrics": {
+    "cpu_usage": "0.0",
+    "memory_usage": "19.3",
+    "disk_usage": "4",
+    "load_average": "0.08"
+  },
+  "project_metrics": {
+    "code_lines": 10925,
+    "source_files": 16,
+    "header_files": 16,
+    "build_size": "B
+6",
+    "test_files": 4
+  },
+  "git_metrics": {
+    "commit_count": 39,
+    "last_commit": "2025-12-10",
+    "current_branch": "soft-ue-integration,",
+    "working_changes": 2
+  },
+  "health_checks": {
+    "build_system": "PASS",
+    "basic_function": "PASS",
+    "performance_test": "PASS",
+    "library_files": "PASS",
+    "documentation": "PASS"
+  }
+}

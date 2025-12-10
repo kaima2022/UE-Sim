@@ -37,8 +37,9 @@ PdsManager::PdsManager ()
     m_statisticsEnabled (true),
     m_nextPdcId (1),
     m_maxPdcCount (1024),
-    m_state (PDS_IDLE),
-    m_pdcIdBitmap (MAX_PDC_ID + 1, false) // Initialize bitmap with all IDs free
+    m_pdcIdBitmap (MAX_PDC_ID + 1, false), // Initialize bitmap with all IDs free
+    m_freePdcIds (),
+    m_state (PDS_IDLE)
 {
   NS_LOG_FUNCTION (this);
   NS_LOG_DEBUG ("PdsManager created with optimized PDC ID allocation system");

@@ -68,7 +68,8 @@ void ValidateSoftUeAchievements ()
 
         // 创建网络设备 - 证明设备层实现
         Ptr<Node> node = CreateObject<Node> ();
-        Ptr<SoftUeNetDevice> device = helper.Install (node);
+        NetDeviceContainer devices = helper.Install (node);
+        Ptr<SoftUeNetDevice> device = DynamicCast<SoftUeNetDevice> (devices.Get (0));
         std::cout << "✅ SoftUeNetDevice创建成功 - 证明网络设备层完整\n";
 
         // 创建通道 - 证明通信层实现
@@ -92,7 +93,8 @@ void ValidateSoftUeAchievements ()
     {
         Ptr<Node> node2 = CreateObject<Node> ();
         SoftUeHelper helper2;
-        Ptr<SoftUeNetDevice> device2 = helper2.Install (node2);
+        NetDeviceContainer devices2 = helper2.Install (node2);
+        Ptr<SoftUeNetDevice> device2 = DynamicCast<SoftUeNetDevice> (devices2.Get (0));
 
         // 验证SES管理器
         Ptr<SesManager> sesManager = device2->GetSesManager ();
@@ -131,13 +133,14 @@ void ValidateSoftUeAchievements ()
     {
         Ptr<Node> node3 = CreateObject<Node> ();
         SoftUeHelper helper3;
-        Ptr<SoftUeNetDevice> device3 = helper3.Install (node3);
+        NetDeviceContainer devices3 = helper3.Install (node3);
+        Ptr<SoftUeNetDevice> device3 = DynamicCast<SoftUeNetDevice> (devices3.Get (0));
 
         // 配置设备
         device3->Initialize ();
 
         // 测试PDC分配
-        uint16_t pdcId = device3->AllocatePdc (1234, 0, 0, PDS_NEXT_HEADER_ROCE);
+        uint16_t pdcId = device3->AllocatePdc (1234, 0, 0, PDSNextHeader::PDS_NEXT_HEADER_ROCE);
         if (pdcId != 0)
         {
             std::cout << "✅ PDC分配成功 (ID: " << pdcId << ") - 证明包递送上下文管理正常\n";
@@ -151,7 +154,7 @@ void ValidateSoftUeAchievements ()
         std::vector<uint16_t> pdcIds;
         for (int i = 0; i < 3; i++)
         {
-            uint16_t id = device3->AllocatePdc (2000 + i, i % 4, 0, PDS_NEXT_HEADER_ROCE);
+            uint16_t id = device3->AllocatePdc (2000 + i, i % 4, 0, PDSNextHeader::PDS_NEXT_HEADER_ROCE);
             if (id != 0)
             {
                 pdcIds.push_back (id);
@@ -187,7 +190,8 @@ void ValidateSoftUeAchievements ()
     {
         Ptr<Node> node4 = CreateObject<Node> ();
         SoftUeHelper helper4;
-        Ptr<SoftUeNetDevice> device4 = helper4.Install (node4);
+        NetDeviceContainer devices4 = helper4.Install (node4);
+        Ptr<SoftUeNetDevice> device4 = DynamicCast<SoftUeNetDevice> (devices4.Get (0));
 
         // 启用统计
         device4->Initialize ();
@@ -224,7 +228,8 @@ void ValidateSoftUeAchievements ()
     {
         Ptr<Node> node5 = CreateObject<Node> ();
         SoftUeHelper helper5;
-        Ptr<SoftUeNetDevice> device5 = helper5.Install (node5);
+        NetDeviceContainer devices5 = helper5.Install (node5);
+        Ptr<SoftUeNetDevice> device5 = DynamicCast<SoftUeNetDevice> (devices5.Get (0));
         device5->Initialize ();
 
         // 快速操作测试
@@ -234,7 +239,7 @@ void ValidateSoftUeAchievements ()
         std::vector<uint16_t> allocatedPdcs;
         for (int i = 0; i < 100; i++)
         {
-            uint16_t pdcId = device5->AllocatePdc (3000 + i, i % 8, 0, PDS_NEXT_HEADER_ROCE);
+            uint16_t pdcId = device5->AllocatePdc (3000 + i, i % 8, 0, PDSNextHeader::PDS_NEXT_HEADER_ROCE);
             if (pdcId != 0)
             {
                 allocatedPdcs.push_back (pdcId);
