@@ -185,10 +185,13 @@ bool
 SoftUeNetDevice::SetMtu (const uint16_t mtu)
 {
   NS_LOG_FUNCTION (this << mtu);
-  if (mtu > 0 && mtu <= m_config.maxPacketSize)
+  if (mtu > 0)
     {
       m_mtu = mtu;
-      m_config.maxPacketSize = mtu;
+      if (mtu > m_config.maxPacketSize)
+        {
+          m_config.maxPacketSize = mtu;
+        }
       return true;
     }
   return false;
