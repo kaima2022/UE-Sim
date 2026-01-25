@@ -320,6 +320,17 @@ SoftUeNetDevice::Send (Ptr<Packet> packet, const Address& dest, uint16_t protoco
       m_statistics.totalBytesTransmitted += packet->GetSize ();
       m_statistics.lastActivity = Simulator::Now ();
       m_macTxTrace (packet, dest);
+
+      // Update PDS statistics
+      if (m_pdsManager)
+        {
+          Ptr<PdsStatistics> pdsStats = m_pdsManager->GetStatistics ();
+          if (pdsStats)
+            {
+              pdsStats->IncrementSentPackets ();
+              pdsStats->RecordBytesSent (packet->GetSize ());
+            }
+        }
     }
   else
     {
@@ -473,6 +484,17 @@ SoftUeNetDevice::ReceivePacket (Ptr<Packet> packet, uint32_t sourceFep, uint32_t
   m_statistics.totalPacketsReceived++;
   m_statistics.totalBytesReceived += packet->GetSize ();
   m_statistics.lastActivity = Simulator::Now ();
+
+  // Update PDS statistics
+  if (m_pdsManager && m_pdsManager->IsStatisticsEnabled ())
+    {
+      Ptr<PdsStatistics> pdsStats = m_pdsManager->GetStatistics ();
+      if (pdsStats)
+        {
+          pdsStats->IncrementReceivedPackets ();
+          pdsStats->RecordBytesReceived (packet->GetSize ());
+        }
+    }
 
   // Trace packet reception
   m_macRxTrace (packet, CreateAddressFromFep (sourceFep));

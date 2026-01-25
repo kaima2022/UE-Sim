@@ -264,6 +264,18 @@ public:
     void RecordPacketReception (uint64_t bytes, double latency);
 
     /**
+     * @brief Record bytes sent (without latency tracking)
+     * @param bytes Number of bytes sent
+     */
+    void RecordBytesSent (uint64_t bytes);
+
+    /**
+     * @brief Record bytes received (without latency tracking)
+     * @param bytes Number of bytes received
+     */
+    void RecordBytesReceived (uint64_t bytes);
+
+    /**
      * @brief Get calculated throughput in Mbps
      * @return Throughput in megabits per second
      */

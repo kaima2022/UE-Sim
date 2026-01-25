@@ -287,21 +287,26 @@ StressTestApp::StartApplication ()
 
     if (GetNode ()->GetNDevices () > 0)
     {
-        Ptr<SoftUeNetDevice> device = GetNode ()->GetDevice (0)->GetObject<SoftUeNetDevice> ();
-        if (device)
+        // Find SoftUeNetDevice by iterating through all devices
+        for (uint32_t i = 0; i < GetNode ()->GetNDevices (); ++i)
         {
-            m_sesManager = device->GetSesManager ();
-            m_pdsManager = device->GetPdsManager ();
-
-            if (m_sesManager && m_pdsManager)
+            Ptr<SoftUeNetDevice> device = GetNode ()->GetDevice (i)->GetObject<SoftUeNetDevice> ();
+            if (device)
             {
-                m_sesManager->SetPdsManager (m_pdsManager);
-            }
+                m_sesManager = device->GetSesManager ();
+                m_pdsManager = device->GetPdsManager ();
 
-            if (m_isServer)
-            {
-                device->SetReceiveCallback (MakeCallback (&StressTestApp::HandleRead, this));
-                NS_LOG_INFO ("Server ready for stress test");
+                if (m_sesManager && m_pdsManager)
+                {
+                    m_sesManager->SetPdsManager (m_pdsManager);
+                }
+
+                if (m_isServer)
+                {
+                    device->SetReceiveCallback (MakeCallback (&StressTestApp::HandleRead, this));
+                    NS_LOG_INFO ("Server ready for stress test");
+                }
+                break;
             }
         }
     }
@@ -390,8 +395,13 @@ StressTestApp::SendPacket ()
     // Process through SES
     bool sesProcessed = m_sesManager->ProcessSendRequest (extMetadata);
 
-    // Send through device
-    Ptr<SoftUeNetDevice> device = GetNode ()->GetDevice (0)->GetObject<SoftUeNetDevice> ();
+    // Send through device - find SoftUeNetDevice
+    Ptr<SoftUeNetDevice> device;
+    for (uint32_t i = 0; i < GetNode ()->GetNDevices (); ++i)
+    {
+        device = GetNode ()->GetDevice (i)->GetObject<SoftUeNetDevice> ();
+        if (device) break;
+    }
     if (device)
     {
         Time sendTime = Simulator::Now ();
@@ -813,9 +823,9 @@ main (int argc, char *argv[])
     std::cout << "\n" << clientApp->GetStatistics ();
     std::cout << serverApp->GetStatistics ();
 
-    // PDS Manager statistics
-    auto pdsStats0 = pdsManager0->GetStatistics ();
-    auto pdsStats1 = pdsManager1->GetStatistics ();
+    // PDS Manager statistics - get directly from devices to ensure consistency
+    Ptr<PdsStatistics> pdsStats0 = device0->GetPdsManager ()->GetStatistics ();
+    Ptr<PdsStatistics> pdsStats1 = device1->GetPdsManager ()->GetStatistics ();
     std::cout << "\nNode 0 PDS Statistics:\n" << pdsStats0->GetStatistics ();
     std::cout << "\nNode 1 PDS Statistics:\n" << pdsStats1->GetStatistics ();
 

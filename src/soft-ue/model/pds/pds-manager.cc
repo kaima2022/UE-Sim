@@ -68,8 +68,11 @@ PdsManager::Initialize (void)
 {
   NS_LOG_FUNCTION (this);
 
-  // Create statistics object
-  m_statistics = CreateObject<PdsStatistics> ();
+  // Only create statistics object if not already created
+  if (!m_statistics)
+    {
+      m_statistics = CreateObject<PdsStatistics> ();
+    }
 
   NS_LOG_INFO ("PDS Manager initialized");
 }

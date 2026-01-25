@@ -311,6 +311,32 @@ PdsStatistics::RecordPacketReception (uint64_t bytes, double latency)
     NS_LOG_DEBUG ("Packet reception recorded: " << bytes << " bytes, " << latency << "ns");
 }
 
+void
+PdsStatistics::RecordBytesSent (uint64_t bytes)
+{
+    NS_LOG_FUNCTION (this << bytes);
+    m_totalBytesSent += bytes;
+
+    if (m_firstPacketTime == Seconds (0))
+    {
+        m_firstPacketTime = Simulator::Now ();
+    }
+    m_lastPacketTime = Simulator::Now ();
+}
+
+void
+PdsStatistics::RecordBytesReceived (uint64_t bytes)
+{
+    NS_LOG_FUNCTION (this << bytes);
+    m_totalBytesReceived += bytes;
+
+    if (m_firstPacketTime == Seconds (0))
+    {
+        m_firstPacketTime = Simulator::Now ();
+    }
+    m_lastPacketTime = Simulator::Now ();
+}
+
 double
 PdsStatistics::GetThroughputMbps (void) const
 {
