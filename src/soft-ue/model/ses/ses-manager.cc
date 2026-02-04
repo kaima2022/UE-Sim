@@ -190,11 +190,11 @@ SesManager::ProcessSendRequest (Ptr<ExtendedOperationMetadata> metadata, Ptr<Pac
             }
             NS_LOG_INFO ("============================================================");
             if (txN > 0)
-                NS_LOG_INFO (" [UEC-E2E] 大包 " << txK << "/" << txN << " 开始（切包） 事务 " << payloadLen
-                             << " bytes → " << nPackets << " 片 (MTU=" << m_maxMtu << ")");
+                NS_LOG_INFO (" [UEC-E2E] Tx " << txK << "/" << txN << " fragmentation: " << payloadLen
+                             << " bytes → " << nPackets << " frags (MTU=" << m_maxMtu << ")");
             else
-                NS_LOG_INFO (" [UEC-E2E] 大包开始（切包） 事务 " << payloadLen << " bytes → " << nPackets
-                             << " 片 (MTU=" << m_maxMtu << ")");
+                NS_LOG_INFO (" [UEC-E2E] Tx fragmentation: " << payloadLen << " bytes → " << nPackets
+                             << " frags (MTU=" << m_maxMtu << ")");
             NS_LOG_INFO ("============================================================");
             SesPdsRequest baseRequest = InitializeSesHeader (metadata);
             uint32_t messageId = baseRequest.rod_context;
@@ -203,9 +203,9 @@ SesManager::ProcessSendRequest (Ptr<ExtendedOperationMetadata> metadata, Ptr<Pac
             {
                 NS_LOG_INFO ("============================================================");
                 if (txN > 0)
-                    NS_LOG_INFO (" [UEC-E2E] 大包 " << txK << "/" << txN << " 小包 " << (i + 1) << "/" << nPackets << " 全流程（发送）");
+                    NS_LOG_INFO (" [UEC-E2E] Tx " << txK << " Frag " << (i + 1) << " send");
                 else
-                    NS_LOG_INFO (" [UEC-E2E] 小包 " << (i + 1) << "/" << nPackets << " 全流程（发送）");
+                    NS_LOG_INFO (" [UEC-E2E] Frag " << (i + 1) << " send");
                 NS_LOG_INFO ("============================================================");
                 uint32_t offset = i * payloadPerPacket;
                 uint32_t fragLen = (i + 1 == nPackets)

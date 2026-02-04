@@ -247,12 +247,9 @@ PdsManager::ProcessReceivedPacket (Ptr<Packet> packet, uint32_t sourceEndpoint, 
       NS_LOG_INFO ("============================================================");
       SoftUeTransactionTag txTag;
       if (packet->PeekPacketTag (txTag) && txTag.GetTotalTransactions () > 0)
-        NS_LOG_INFO (" [UEC-E2E] 大包 " << txTag.GetTransactionIndex () << "/" << txTag.GetTotalTransactions ()
-                     << " 小包 " << fragTag.GetFragmentIndex () << "/" << fragTag.GetTotalFragments ()
-                     << " 全流程（收端）");
+        NS_LOG_INFO (" [UEC-E2E] Tx " << txTag.GetTransactionIndex () << " Frag " << fragTag.GetFragmentIndex () << " recv");
       else
-        NS_LOG_INFO (" [UEC-E2E] 小包 " << fragTag.GetFragmentIndex () << "/" << fragTag.GetTotalFragments ()
-                     << " 全流程（收端）");
+        NS_LOG_INFO (" [UEC-E2E] Frag " << fragTag.GetFragmentIndex () << " recv");
       NS_LOG_INFO ("============================================================");
     }
 
