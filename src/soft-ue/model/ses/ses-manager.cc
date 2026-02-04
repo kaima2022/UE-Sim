@@ -180,7 +180,7 @@ SesManager::ProcessSendRequest (Ptr<ExtendedOperationMetadata> metadata, Ptr<Pac
 
         if (fragment && nPackets > 1)
         {
-            // Transaction → multiple packets: split by MTU and submit each via PDS
+            // Transaction -> multiple packets: split by MTU and submit each via PDS
             uint32_t txK = 0, txN = 0;
             SoftUeTransactionTag txTag;
             if (packet->PeekPacketTag (txTag))
@@ -191,9 +191,9 @@ SesManager::ProcessSendRequest (Ptr<ExtendedOperationMetadata> metadata, Ptr<Pac
             NS_LOG_INFO ("============================================================");
             if (txN > 0)
                 NS_LOG_INFO (" [UEC-E2E] Tx " << txK << "/" << txN << " fragmentation: " << payloadLen
-                             << " bytes → " << nPackets << " frags (MTU=" << m_maxMtu << ")");
+                             << " bytes -> " << nPackets << " frags (MTU=" << m_maxMtu << ")");
             else
-                NS_LOG_INFO (" [UEC-E2E] Tx fragmentation: " << payloadLen << " bytes → " << nPackets
+                NS_LOG_INFO (" [UEC-E2E] Tx fragmentation: " << payloadLen << " bytes -> " << nPackets
                              << " frags (MTU=" << m_maxMtu << ")");
             NS_LOG_INFO ("============================================================");
             SesPdsRequest baseRequest = InitializeSesHeader (metadata);
@@ -230,10 +230,10 @@ SesManager::ProcessSendRequest (Ptr<ExtendedOperationMetadata> metadata, Ptr<Pac
                     return false;
                 }
                 m_totalPacketsGenerated++;
-                NS_LOG_INFO ("[UEC-E2E] [SES] 切包 第 " << (i + 1) << "/" << nPackets << " 片: len="
+                NS_LOG_INFO ("[UEC-E2E] [SES] Fragment " << (i + 1) << "/" << nPackets << ": len="
                              << fragLen << " SOM=" << request.som << " EOM=" << request.eom);
             }
-            NS_LOG_INFO ("[UEC-E2E] [SES] ③ SES 层 ProcessSendRequest: 1 事务 → " << nPackets << " 包");
+            NS_LOG_INFO ("[UEC-E2E] [SES] (3) ProcessSendRequest: 1 transaction -> " << nPackets << " packets");
         }
         else
         {
@@ -252,16 +252,16 @@ SesManager::ProcessSendRequest (Ptr<ExtendedOperationMetadata> metadata, Ptr<Pac
                 return false;
             }
             m_totalPacketsGenerated++;
-            NS_LOG_INFO ("[UEC-E2E] [SES] ③ SES 层 ProcessSendRequest: src_node=" << metadata->GetSourceNodeId ()
+            NS_LOG_INFO ("[UEC-E2E] [SES] (3) ProcessSendRequest: src_node=" << metadata->GetSourceNodeId ()
                          << " dst_node=" << metadata->GetDestinationNodeId () << " job_id=" << metadata->job_id
-                         << " messages_id=" << metadata->messages_id << " → 校验通过，单包发送");
+                         << " messages_id=" << metadata->messages_id << " -> validated, send single packet");
         }
     }
     else
     {
-        NS_LOG_INFO ("[UEC-E2E] [SES] ③ SES 层 ProcessSendRequest: src_node=" << metadata->GetSourceNodeId ()
+        NS_LOG_INFO ("[UEC-E2E] [SES] (3) ProcessSendRequest: src_node=" << metadata->GetSourceNodeId ()
                      << " dst_node=" << metadata->GetDestinationNodeId () << " job_id=" << metadata->job_id
-                     << " messages_id=" << metadata->messages_id << " → 校验通过，允许发送");
+                     << " messages_id=" << metadata->messages_id << " -> validated, allow send");
     }
 
     m_totalSuccessfulRequests++;
@@ -295,12 +295,12 @@ SesManager::ProcessReceiveRequest (const PdcSesRequest& request)
                 ScheduleProcessing ();
         }
 
-        // B1: Drive delivery to app via device (receive path PDS → SES → App)
+        // B1: Drive delivery to app via device (receive path PDS -> SES -> App)
         if (m_netDevice && request.packet)
         {
             NS_LOG_INFO ("[UEC-E2E] [Control] Rx req/Rx rsp (placeholder) pdc_id=" << request.pdc_id);
             NS_LOG_INFO ("[UEC-E2E] [SES] ProcessReceiveRequest pdc_id=" << request.pdc_id
-                         << " → DeliverReceivedPacket（收端经 SES → App）");
+                         << " -> DeliverReceivedPacket (rx via SES -> app)");
             m_netDevice->DeliverReceivedPacket (request.packet);
         }
         m_totalSuccessfulRequests++;

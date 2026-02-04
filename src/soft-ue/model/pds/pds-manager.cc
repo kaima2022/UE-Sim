@@ -219,8 +219,8 @@ PdsManager::ProcessReceivedPacket (Ptr<Packet> packet, uint32_t sourceEndpoint, 
   packet->PeekHeader (pdsHeader);
   uint16_t pdcId = pdsHeader.GetPdcId ();
 
-  NS_LOG_INFO ("[UEC-E2E] [PDS] ProcessReceivedPacket 解析 pdc_id=" << pdcId
-               << " 按 pdc_id 分发（收端 PDC）");
+  NS_LOG_INFO ("[UEC-E2E] [PDS] ProcessReceivedPacket: parse pdc_id=" << pdcId
+               << ", dispatch by pdc_id (rx-side PDC)");
 
   // Ensure we have a PDC for this pdc_id on receive side (passive creation)
   if (!EnsureReceivePdc (pdcId, sourceEndpoint))
@@ -240,7 +240,7 @@ PdsManager::ProcessReceivedPacket (Ptr<Packet> packet, uint32_t sourceEndpoint, 
   // Remove PDS header to get payload for upper layer
   packet->RemoveHeader (pdsHeader);
 
-  // E2E log: 小包 i/N（可选 大包 k/N）全流程（收端）when this packet is a SES fragment
+  // E2E log: fragment i/N (optional: Tx k/N) receive-side full path marker
   SoftUeFragmentTag fragTag;
   if (packet->PeekPacketTag (fragTag))
     {
@@ -273,7 +273,7 @@ PdsManager::ProcessReceivedPacket (Ptr<Packet> packet, uint32_t sourceEndpoint, 
 
   NS_LOG_DEBUG ("Processed received packet - pdc_id=" << pdcId << " payload size=" << packet->GetSize ());
 
-  // Receive path: PDS → SES (ProcessReceiveRequest) → App (B1)
+  // Receive path: PDS -> SES (ProcessReceiveRequest) -> App (B1)
   if (m_sesManager)
     {
       PdcSesRequest req;
@@ -284,13 +284,13 @@ PdsManager::ProcessReceivedPacket (Ptr<Packet> packet, uint32_t sourceEndpoint, 
       req.next_hdr = PDSNextHeader::PAYLOAD;
       req.orig_pdcid = pdcId;
       req.orig_psn = pdsHeader.GetSequenceNumber ();
-      NS_LOG_INFO ("[UEC-E2E] [PDS] 去 PDS 头 → SesManager::ProcessReceiveRequest（收端经 SES → App）");
+      NS_LOG_INFO ("[UEC-E2E] [PDS] Strip PDS header -> SesManager::ProcessReceiveRequest (rx via SES -> app)");
       if (m_sesManager->ProcessReceiveRequest (req))
         return true;
       // If SES declined, fall back to direct delivery
     }
 
-  NS_LOG_INFO ("[UEC-E2E] [PDS] 去 PDS 头 → DeliverReceivedPacket 递交应用层");
+  NS_LOG_INFO ("[UEC-E2E] [PDS] Strip PDS header -> DeliverReceivedPacket to application");
   m_netDevice->DeliverReceivedPacket (packet);
   return true;
 }
@@ -526,7 +526,7 @@ PdsManager::SendPacketThroughPdc (uint16_t pdcId, Ptr<Packet> packet, bool som, 
     return false;
   }
 
-  NS_LOG_INFO ("[UEC-E2E] [PDS] SendPacketThroughPdc pdc_id=" << pdcId << " → PDC 实例发送");
+  NS_LOG_INFO ("[UEC-E2E] [PDS] SendPacketThroughPdc pdc_id=" << pdcId << " -> PDC instance send");
 
   // Send packet through PDC
   bool success = pdc->SendPacket (packet, som, eom);
@@ -575,8 +575,8 @@ PdsManager::DispatchPacket (const SesPdsRequest& request)
     return false;
   }
 
-  NS_LOG_INFO ("[UEC-E2E] [PDS] PDS Manager AllocatePdc pdc_id=" << pdcId
-               << " → SendPacketThroughPdc（经 PDC 发）");
+  NS_LOG_INFO ("[UEC-E2E] [PDS] AllocatePdc pdc_id=" << pdcId
+               << " -> SendPacketThroughPdc (via PDC)");
 
   // Send packet through PDC
   bool success = SendPacketThroughPdc (pdcId, request.packet, request.som, request.eom);

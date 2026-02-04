@@ -193,8 +193,8 @@ SoftUeChannel::Transmit (Ptr<Packet> packet, Ptr<NetDevice> src, uint32_t source
     }
 
   // Trace transmission
-  NS_LOG_INFO ("[UEC-E2E] [Channel] ⑤ 信道 Transmit: FEP " << sourceFep << " → FEP " << destFep
-               << " size=" << packet->GetSize () << " B (经延迟后送达对端)");
+  NS_LOG_INFO ("[UEC-E2E] [Channel] (5) Transmit: FEP " << sourceFep << " -> FEP " << destFep
+               << " size=" << packet->GetSize () << " B (delivered after delay)");
   m_txTrace (packet, sourceFep, destFep);
 
   // Transmit to all destination devices
@@ -237,8 +237,8 @@ SoftUeChannel::ReceivePacket (Ptr<Packet> packet, Ptr<NetDevice> dest, uint32_t 
     }
 
   // Trace reception
-  NS_LOG_INFO ("[UEC-E2E] [Channel] ⑥ 信道 ReceivePacket: FEP " << sourceFep << " → FEP " << destFep
-               << " 送达设备，设备即将 ReceivePacket");
+  NS_LOG_INFO ("[UEC-E2E] [Channel] (6) ReceivePacket: FEP " << sourceFep << " -> FEP " << destFep
+               << " delivered, device will ReceivePacket");
   m_rxTrace (packet, sourceFep, destFep);
 
   // Forward packet to device for processing

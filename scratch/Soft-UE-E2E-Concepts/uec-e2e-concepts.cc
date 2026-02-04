@@ -16,22 +16,21 @@
 
 /**
  * @file             uec-e2e-concepts.cc
- * @brief            UEC 端到端概念实验 — 覆盖 SES/PDS/PDC/FEP/MSN/SOM/EOM/RTO
+ * @brief            UEC end-to-end concepts: SES/PDS/PDC/FEP/MSN/SOM/EOM/RTO
  * @author           softuegroup@gmail.com
  * @date             2025-02-04
  *
  * @details
- * 本实验按阶段演示 Ultra Ethernet 协议栈中的关键概念，便于理解项目。
- * 对应文档：项目剖析与追踪/07-UEC端到端概念实验与图解.md
+ * This program prints an annotated end-to-end flow for the UEC protocol stack.
  *
- * 覆盖概念：
- * - FEP (Fabric Endpoint)      — 网络端点标识
- * - SES (Semantic Sub-layer)   — 操作类型、OperationMetadata、ProcessSendRequest
- * - PDS (Packet Delivery Sub-layer) — PDSHeader、pdc_id、seq_num、SOM/EOM
- * - PDC (Packet Delivery Context)   — 传输上下文
- * - IPDC / TPDC                — 不可靠 vs 可靠（RTO 重传在 TPDC）
- * - MSN (Message Sequence Number)   — 消息序列与乱序重组
- * - SOM / EOM                  — 消息起止标记
+ * Concepts covered:
+ * - FEP (Fabric Endpoint)
+ * - SES (Semantic Sub-layer): OperationMetadata + ProcessSendRequest
+ * - PDS (Packet Delivery Sub-layer): PDSHeader (pdc_id, seq_num, SOM, EOM)
+ * - PDC (Packet Delivery Context)
+ * - IPDC / TPDC: unreliable vs reliable (RTO is in TPDC)
+ * - MSN (Message Sequence Number)
+ * - SOM / EOM (Start/End of Message)
  */
 
 #include "ns3/core-module.h"
@@ -50,13 +49,13 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("UecE2EConcepts");
 
 // ---------------------------------------------------------------------------
-// 配置：小规模便于观察
+// Config: keep small for readability
 // ---------------------------------------------------------------------------
 struct E2EConceptsConfig
 {
   uint32_t nodeCount = 2;
-  uint32_t transactionSize = 256; // 每个事务的 payload 大小(字节)
-  uint32_t packetCount = 20;       // 发送的事务个数
+  uint32_t transactionSize = 256; // payload size per transaction (bytes)
+  uint32_t packetCount = 20;      // number of transactions to send
   Time sendInterval = MilliSeconds (10);
   uint32_t maxPdcCount = 64;
   DataRate channelDataRate = DataRate ("1Gbps");
@@ -70,7 +69,7 @@ struct E2EConceptsConfig
 };
 
 // ---------------------------------------------------------------------------
-// 概念演示应用：客户端发送、服务端接收，并打印各阶段对应概念
+// Demo app: client sends, server receives, prints an annotated flow
 // ---------------------------------------------------------------------------
 class ConceptsDemoApp : public Application
 {
@@ -157,7 +156,8 @@ ConceptsDemoApp::StartApplication ()
 
   if (!m_isServer)
     {
-      NS_LOG_INFO ("[Phase 3] Client: 开始发送 " << m_numPackets << " 个事务（每事务 " << m_transactionSize << " B）(SES+PDS+PDC 全路径)");
+      NS_LOG_INFO ("[Phase 3] Client: start sending " << m_numPackets
+                   << " transactions (each " << m_transactionSize << " B) (SES+PDS+PDC end-to-end)");
       ScheduleSend ();
     }
 }
@@ -201,7 +201,8 @@ ConceptsDemoApp::SendPacket ()
   uint32_t k = m_packetsSent + 1;
   uint32_t n = m_numPackets;
   if (n > 1)
-    NS_LOG_INFO ("[UEC-E2E] [App] 事务 " << k << "/" << n << " size=" << m_transactionSize << " B → device->Send()（SES 按 MTU 单包或切包）");
+    NS_LOG_INFO ("[UEC-E2E] [App] Tx " << k << "/" << n << " size=" << m_transactionSize
+                 << " B -> device->Send() (SES sends as single packet or fragments by MTU)");
 
   Ptr<Packet> packet = Create<Packet> (m_transactionSize);
   if (!packet)
@@ -231,21 +232,21 @@ ConceptsDemoApp::HandleRead (Ptr<NetDevice> device, Ptr<const Packet> packet,
   Ptr<Packet> copy = packet->Copy ();
   PDSHeader pdsHeader;
   copy->RemoveHeader (pdsHeader);
-  NS_LOG_INFO ("[UEC-E2E] [App] ⑧ 应用层 收包 seq=" << pdsHeader.GetSequenceNumber ()
+  NS_LOG_INFO ("[UEC-E2E] [App] (8) Receive: seq=" << pdsHeader.GetSequenceNumber ()
                << " pdc_id=" << pdsHeader.GetPdcId () << " size=" << packet->GetSize ()
-               << " (累计接收 " << m_packetsReceived << " 包)");
+               << " (total received " << m_packetsReceived << ")");
 
   return true;
 }
 
 // ---------------------------------------------------------------------------
-// 打印 FEP（Phase 0）
+// Print FEPs (Phase 0)
 // ---------------------------------------------------------------------------
 void
 PrintFepPhase (NetDeviceContainer& devices)
 {
   std::cout << "\n" << std::string (60, '=') << "\n";
-  std::cout << "  Phase 0: FEP (Fabric Endpoint) — 网络端点标识\n";
+  std::cout << "  Phase 0: FEP (Fabric Endpoint)\n";
   std::cout << std::string (60, '=') << "\n";
 
   for (uint32_t i = 0; i < devices.GetN (); ++i)
@@ -254,45 +255,44 @@ PrintFepPhase (NetDeviceContainer& devices)
       if (dev)
         {
           SoftUeConfig cfg = dev->GetConfiguration ();
-          std::cout << "  Node " << i << " → FEP = " << cfg.localFep
-                    << " (Fabric Endpoint 决定该节点在网络中的唯一标识)\n";
+          std::cout << "  Node " << i << ": FEP=" << cfg.localFep << " (unique endpoint id)\n";
         }
     }
-  std::cout << "  图解参考: 07-UEC端到端概念实验与图解.md §3.1 FEP\n";
+  std::cout << "  Diagrams: attachment/SUETArchitecture.png and attachment/CoreComponents.png\n";
   std::cout << std::string (60, '-') << "\n";
 }
 
 // ---------------------------------------------------------------------------
-// 打印概念清单（Phase 4）
+// Print concept checklist (Phase 4)
 // ---------------------------------------------------------------------------
 void
 PrintConceptsChecklist (Ptr<ConceptsDemoApp> clientApp, Ptr<ConceptsDemoApp> serverApp,
                        Ptr<SoftUeNetDevice> dev0, Ptr<SoftUeNetDevice> dev1)
 {
   std::cout << "\n" << std::string (60, '=') << "\n";
-  std::cout << "  Phase 4: 本实验覆盖的 UEC 关键概念清单\n";
+  std::cout << "  Phase 4: UEC concept checklist covered by this program\n";
   std::cout << std::string (60, '=') << "\n";
 
-  std::cout << "  [x] FEP   — Fabric Endpoint，见 Phase 0 打印\n";
-  std::cout << "  [x] SES   — Semantic Sub-layer，OperationMetadata + ProcessSendRequest\n";
-  std::cout << "  [x] PDS   — Packet Delivery Sub-layer，PDSHeader(pdc_id, seq, SOM, EOM)\n";
-  std::cout << "  [x] PDC   — Packet Delivery Context，由 pdc_id 选择 IPDC/TPDC\n";
-  std::cout << "  [x] IPDC  — 不可靠 PDC，本实验使用 pdc_id 1..maxPdcCount (IPDC 段)\n";
-  std::cout << "  [x] TPDC  — 可靠 PDC，pdc_id 513..1024，含 RTO 重传（本脚本未显式测 RTO）\n";
-  std::cout << "  [x] MSN   — Message Sequence Number，metadata.messages_id + PDS seq_num\n";
-  std::cout << "  [x] SOM/EOM — Start/End of Message，PDSHeader 中首包 SOM=1、末包 EOM=1\n";
-  std::cout << "  [x] RTO   — Retransmission Timeout，TPDC 专用，见 rto-timer 模块\n";
+  std::cout << "  [x] FEP     - Fabric Endpoint (see Phase 0)\n";
+  std::cout << "  [x] SES     - Semantic Sub-layer: OperationMetadata + ProcessSendRequest\n";
+  std::cout << "  [x] PDS     - Packet Delivery Sub-layer: PDSHeader(pdc_id, seq, SOM, EOM)\n";
+  std::cout << "  [x] PDC     - Packet Delivery Context: selected by pdc_id (IPDC/TPDC)\n";
+  std::cout << "  [x] IPDC    - Unreliable PDC (pdc_id 1..maxPdcCount in this program)\n";
+  std::cout << "  [x] TPDC    - Reliable PDC (pdc_id 513..1024), includes RTO (not exercised here)\n";
+  std::cout << "  [x] MSN     - Message Sequence Number: metadata.messages_id + PDS seq_num\n";
+  std::cout << "  [x] SOM/EOM - Start/End of Message: SOM=1 on first, EOM=1 on last\n";
+  std::cout << "  [x] RTO     - Retransmission Timeout (TPDC)\n";
 
   if (clientApp && serverApp)
-    std::cout << "\n  收发包: 客户端发送 " << clientApp->GetPacketsSent ()
-              << " 个事务, 服务端接收 " << serverApp->GetPacketsReceived () << " 包\n";
+    std::cout << "\n  Traffic: client sent " << clientApp->GetPacketsSent ()
+              << " transactions, server received " << serverApp->GetPacketsReceived () << " packets\n";
 
   if (dev0 && dev1)
     {
       Ptr<PdsStatistics> st0 = dev0->GetPdsManager ()->GetStatistics ();
       Ptr<PdsStatistics> st1 = dev1->GetPdsManager ()->GetStatistics ();
-      std::cout << "\n  PDS 统计 (Node 0):\n" << st0->GetStatistics () << "\n";
-      std::cout << "  PDS 统计 (Node 1):\n" << st1->GetStatistics () << "\n";
+      std::cout << "\n  PDS stats (Node 0):\n" << st0->GetStatistics () << "\n";
+      std::cout << "  PDS stats (Node 1):\n" << st1->GetStatistics () << "\n";
     }
 
   std::cout << std::string (60, '=') << "\n";
@@ -306,12 +306,12 @@ main (int argc, char* argv[])
 {
   E2EConceptsConfig config;
   CommandLine cmd;
-  cmd.AddValue ("transactionSize", "每事务 payload 大小(字节)", config.transactionSize);
-  cmd.AddValue ("packetCount", "发送事务个数", config.packetCount);
-  cmd.AddValue ("maxPdcCount", "最大 PDC 数", config.maxPdcCount);
+  cmd.AddValue ("transactionSize", "Payload size per transaction (bytes)", config.transactionSize);
+  cmd.AddValue ("packetCount", "Number of transactions", config.packetCount);
+  cmd.AddValue ("maxPdcCount", "Max PDC count per device", config.maxPdcCount);
   cmd.Parse (argc, argv);
 
-  // 启用端到端流程关键日志，便于理解全流程（所有 [UEC-E2E] 开头的行）
+  // Enable INFO logs for the end-to-end annotated flow (all lines start with [UEC-E2E])
   LogComponentEnable ("UecE2EConcepts", LOG_LEVEL_INFO);
   LogComponentEnable ("SesManager", LOG_LEVEL_INFO);
   LogComponentEnable ("SoftUeNetDevice", LOG_LEVEL_INFO);
@@ -320,8 +320,8 @@ main (int argc, char* argv[])
   LogComponentEnable ("Ipdc", LOG_LEVEL_INFO);
 
   std::cout << "\n" << std::string (60, '=') << "\n";
-  std::cout << "   UEC 端到端概念实验 (对应 07-UEC端到端概念实验与图解.md)\n";
-  std::cout << "   (下方 [UEC-E2E] 日志为端到端流程关键节点，①②③… 对应 07 文档图解)\n";
+  std::cout << "   UEC end-to-end concepts (annotated logs)\n";
+  std::cout << "   (The [UEC-E2E] lines highlight key steps in the send/receive path)\n";
   std::cout << std::string (60, '=') << "\n";
   std::cout << "  transactionSize=" << config.transactionSize
             << " packetCount=" << config.packetCount
@@ -373,8 +373,8 @@ main (int argc, char* argv[])
 
   PrintFepPhase (devices);
 
-  std::cout << "\n  Phase 1 & 2: 每个包会经过 SES(OperationMetadata+ProcessSendRequest)\n";
-  std::cout << "               与 PDS(PDSHeader: pdc_id, seq_num, SOM, EOM)，见 SendPacket()\n";
+  std::cout << "\n  Phase 1 & 2: each packet goes through SES (OperationMetadata + ProcessSendRequest)\n";
+  std::cout << "               and PDS (PDSHeader: pdc_id, seq_num, SOM, EOM) in SendPacket()\n";
   std::cout << std::string (60, '-') << "\n";
 
   Time simTime = Seconds (1.0) + config.sendInterval * config.packetCount + MilliSeconds (200);

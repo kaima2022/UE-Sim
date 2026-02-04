@@ -380,9 +380,9 @@ private:
 
 /**
  * @class SoftUeFragmentTag
- * @brief ns-3 packet tag for SES-fragmented transaction (小包 i/N)
+ * @brief ns-3 packet tag for SES-fragmented transaction (fragment i/N)
  *
- * Carried on each fragment so receive path can log "小包 i/N 全流程（收端）".
+ * Carried on each fragment so receive path can log "Frag i/N ... recv".
  */
 class SoftUeFragmentTag : public Tag
 {
@@ -403,15 +403,15 @@ public:
     void SetTotalFragments (uint32_t total);
 
 private:
-    uint32_t m_fragmentIndex;   ///< 1-based index of this fragment (小包 i)
-    uint32_t m_totalFragments; ///< Total number of fragments (小包 N)
+    uint32_t m_fragmentIndex;   ///< 1-based index of this fragment (frag i)
+    uint32_t m_totalFragments; ///< Total number of fragments (frag N)
 };
 
 /**
  * @class SoftUeTransactionTag
- * @brief ns-3 packet tag for transaction index (大包 k/N)
+ * @brief ns-3 packet tag for transaction index (Tx k/N)
  *
- * Carried on each transaction/fragment so logs can show "大包 k/N" when multiple transactions.
+ * Carried on each transaction/fragment so logs can show "Tx k/N" when multiple transactions.
  */
 class SoftUeTransactionTag : public Tag
 {
@@ -432,8 +432,8 @@ public:
     void SetTotalTransactions (uint32_t total);
 
 private:
-    uint32_t m_transactionIndex;   ///< 1-based index of this transaction (大包 k)
-    uint32_t m_totalTransactions; ///< Total number of transactions (大包 N)
+    uint32_t m_transactionIndex;   ///< 1-based index of this transaction (Tx k)
+    uint32_t m_totalTransactions; ///< Total number of transactions (Tx N)
 };
 
 } // namespace ns3

@@ -195,7 +195,8 @@ Ipdc::HandleReceivedPacket (Ptr<Packet> packet, uint32_t sourceFep)
   bool ok = EnqueuePacket (m_receiveQueue, packet, false, false,
                           m_ipdcConfig.maxReceiveQueueSize);
   if (ok)
-    NS_LOG_INFO ("[UEC-E2E] [PDC] 收端 HandleReceivedPacket pdc_id=" << m_ipdcConfig.pdcId << " → 入队（随后 PDS → SES → App）");
+    NS_LOG_INFO ("[UEC-E2E] [PDC] rx-side HandleReceivedPacket pdc_id=" << m_ipdcConfig.pdcId
+                 << " -> enqueue (then PDS -> SES -> app)");
   return ok;
 }
 
@@ -599,7 +600,7 @@ Ipdc::TransmitPacket (const QueuedPacket& qp)
   packetToSend->AddHeader (header);
 
   NS_LOG_INFO ("[UEC-E2E] [PDC] PDC pdc_id=" << m_ipdcConfig.pdcId
-               << " TransmitPacket → TransmitToChannel（到信道）");
+               << " TransmitPacket -> TransmitToChannel (to channel)");
 
   // Transmit directly to channel (bypasses PDS Manager / DispatchPacket to avoid recursion)
   bool success = GetNetDevice ()->TransmitToChannel (packetToSend, GetLocalFep (), m_ipdcConfig.remoteFep);
