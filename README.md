@@ -5,7 +5,7 @@
 ---
 </div>
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
 [![ns--3-3.44](https://img.shields.io/badge/ns--3-3.44-green.svg)](VERSION)
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%2020.04+-lightgrey.svg)]()
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-orange.svg)]()
@@ -30,17 +30,10 @@
 
 ## UE-Sim Overview
 
-UE-Sim is an end-to-end, high-precision network simulation platform for the Ultra Ethernet (UEC) protocol stack.
+Soft-UE is a software prototype of Ultra Ethernet Specification. Ultra Ethernet is a specification of new protocols for use over Ethernet networks and optional enhancements to existing Ethernet protocols that improve performance, function, and interoperability of AI and HPC applications. The Ultra Ethernet specification covers a broad range of software and hardware relevant to AI and HPC workloads: from the API supported by UE-compliant devices to the services offered by the transport, link, and physical layers, as well as management, interoperability, benchmarks, and compliance requirements. This project aims to help open-source community developers better understand the Ultra Ethernet Specification while verifying its correctness and feasibility.
 
-The platform provides a low-latency, high-bandwidth interconnect framework based on the ns-3 simulation environment, supporting efficient interconnection of large-scale computing clusters. It aims to address the performance bottlenecks in modern AI and machine learning workloads by providing a reliable and scalable transport layer.
-
-UE-Sim serves two primary objectives:
-
-- **Protocol Validation and Performance Evaluation**: UE-Sim provides an Ultra Ethernet simulation platform for researchers and developers. It supports configuring complex network scenarios, optimizing protocol parameters, and evaluating network performance under various workloads.
-
-- **Transport Specification Optimization**: The platform enables detailed investigation into semantic processing, packet delivery management, and reliable transmission mechanisms to optimize transport specifications.
-
-**Current Version**: UE-Sim v1.0.0
+**Current Release**: SoftUE v1.0.0
+**Website**: https://ultraethernet.org/
 
 ---
 
@@ -57,14 +50,20 @@ UE-Sim serves two primary objectives:
 </p>
 
 - **SES (Semantic Sub-layer)**
-  - Handles transaction-level processing and metadata validation.
-  - Manages semantic consistency for send/receive requests.
-- **PDS Manager (Packet Delivery Sub-layer)**
-  - Responsible for Packet Delivery Context (PDC) allocation and dispatch.
-  - Coordinates packet routing and flow collection across the stack.
+  - Responsible for semantic processing of transaction requests, including endpoint addressing, authorization verification, and metadata management.
+  - Implements **packet slicing (fragmentation)** functionality, breaking down large transactions into multiple packets suitable for network transmission (e.g., based on MTU).
+  - Manages Message Sequence Numbers (MSN) for message boundary identification (SOM/EOM) and reassembly.
+
+- **PDS (Packet Delivery Sub-layer)**
+  - Acts as the central dispatcher for packet delivery.
+  - Handles **PDC allocation and management**, assigning SES packets to specific Packet Delivery Contexts.
+  - Performs packet routing, classification, and error handling for events not associated with a specific PDC.
+  - Coordinates congestion control and traffic management policies.
+
 - **PDC (Packet Delivery Context)**
-  - Manages per-context transmit/receive state machines.
-  - **TPDC**: Implements Retransmission Timeout (RTO) and acknowledgment handling for reliable delivery.
+  - Represents the transport context for a specific flow or transaction.
+  - **IPDC (Immediate PDC)**: Provides unreliable, low-latency transmission for delay-sensitive traffic (no ACK/retransmission).
+  - **TPDC (Transactional PDC)**: Provides reliable transmission with acknowledgment mechanisms and **Retransmission Timeout (RTO)** logic to ensure guaranteed delivery and ordering.
 
 ---
 
@@ -74,8 +73,8 @@ UE-Sim serves two primary objectives:
 UE-Sim/
 ├── src/soft-ue/                      # UEC protocol stack module
 │   ├── model/
-│   │   ├── ses/                      # SES implementation
-│   │   ├── pds/                      # PDS implementation
+│   │   ├── ses/                      # SES implementation (Slicing, Metadata, MSN)
+│   │   ├── pds/                      # PDS implementation (Dispatcher, PDC Allocator)
 │   │   ├── pdc/                      # PDC implementation (IPDC/TPDC + RTO)
 │   │   ├── network/                  # ns-3 net device + channel integration
 │   │   └── common/                   # Shared utilities
@@ -87,6 +86,12 @@ UE-Sim/
 ├── attachment/                       # README diagrams
 └── docs/                             # Documentation assets
 ```
+
+### ns-3 Version Support
+
+**🔄 UE-Sim supports the following ns-3 version**
+
+- **ns-3 v3.44** (Primary support)
 
 ---
 
@@ -131,17 +136,36 @@ Build the project and verify the simulation script:
 
 ### Usage
 
+UE-Sim supports end-to-end concept walkthroughs and high-throughput stress testing.
+
+#### 1. Concept Walkthrough Mode
+Demonstrates the basic protocol interaction with annotated logs, illustrating the flow through SES (fragmentation), PDS (dispatch), and PDC:
 ```bash
 ./ns3 run uec-e2e-concepts -- --transactionSize=4000 --packetCount=2
 ```
+
+#### 2. Stress Test Mode
+Evaluates the protocol stack performance at line rate (e.g., 200Gbps):
+```bash
+./ns3 run Soft-UE -- --packetSize=9000 --numPackets=100000 --maxPdcCount=4096
+```
+
+#### 3. Trace-based Analysis Mode
+Enables detailed packet tracing for performance bottleneck identification:
+```bash
+./ns3 run Soft-UE -- --enableTracing=true --outputDir=./results/
+```
+
+---
 
 ## Changelog
 
 ### v1.0.0
 - **Initial Release**:
   - Complete implementation of SES, PDS, and PDC layers.
-  - Support for high-throughput (200Gbps) transmission scenarios.
-  - Included performance analysis and stress testing tools.
+  - Implemented SES packet segmentation/reassembly and metadata management.
+  - Implemented PDS packet dispatching and PDC allocation logic.
+  - Support for both IPDC (unreliable) and TPDC (reliable) transport contexts.
 
 ---
 
@@ -179,7 +203,7 @@ If you find this project useful for your research, please consider citing it in 
 
 ## License
 
-Apache License 2.0. See `LICENSE`.
+GPLv2 License. See `LICENSE`.
 
 <div align="center">
 
