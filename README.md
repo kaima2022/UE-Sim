@@ -2,6 +2,24 @@
 
 ## **UE-Sim: End-to-End Ultra Ethernet Simulation Platform**
 
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="50%">
+        <img src="images/logo/xgs_logo_.png" alt="信工所Logo" width="180"/><br/>
+        <strong>Institute of Information Engineering</strong><br/>
+        Chinese Academy of Sciences<br/>
+        <em>State Key Laboratory of Cyberspace Security Defense</em>
+      </td>
+      <td align="center" width="50%">
+        <img src="images/logo/wdzs_logo.png" alt="微电子所Logo" width="180"/><br/>
+        <strong>Institute of Microelectronics</strong><br/>
+        Chinese Academy of Sciences<br/>
+        <em>Artificial Intelligence Chip and System Research and Development Center</em>
+      </td>
+    </tr>
+  </table>
+</div>
 ---
 </div>
 
