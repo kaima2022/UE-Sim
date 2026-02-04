@@ -131,8 +131,8 @@ PdcBase::Initialize (const PdcConfig& config)
   m_statistics = PdcStatistics ();
   m_active = false;
 
-  // Validate configuration
-  if (config.pdcId == 0 || config.localFep == 0 || config.remoteFep == 0)
+  // Validate configuration (pdcId can be 0 - base-0 indexing)
+  if (config.localFep == 0 || config.remoteFep == 0)
     {
       NS_LOG_ERROR ("Invalid PDC configuration - missing required parameters");
       return false;

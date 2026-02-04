@@ -38,7 +38,7 @@ PdsManager::PdsManager ()
     m_netDevice (nullptr),
     m_statistics (nullptr),
     m_statisticsEnabled (true),
-    m_nextPdcId (1),
+    m_nextPdcId (0),
     m_maxPdcCount (1024),
     m_pdcIdBitmap (MAX_PDC_ID + 1, false), // Initialize bitmap with all IDs free
     m_freePdcIds (),
@@ -303,11 +303,6 @@ PdsManager::EnsureReceivePdc (uint16_t pdcId, uint32_t sourceFep)
 {
   NS_LOG_FUNCTION (this << "Ensure receive PDC " << pdcId << " remoteFep=" << sourceFep);
 
-  if (pdcId == 0)
-  {
-    return false;
-  }
-
   auto it = m_pdcs.find (pdcId);
   if (it != m_pdcs.end ())
   {
@@ -378,10 +373,12 @@ PdsManager::AllocatePdc (uint32_t destFep, uint8_t tc, uint8_t dm,
     {
       m_statistics->IncrementErrors (PdsErrorCode::PDC_FULL);
     }
-    return 0;
+    return UINT16_MAX;  // Return sentinel value for failure
   }
 
   // Optimized PDC ID allocation - O(1) average case
+  // Use a flag to track whether we found a valid ID (since ID 0 is now valid)
+  bool foundId = false;
   uint16_t pdcId = 0;
 
   // First try to use a recently freed ID from the queue
@@ -389,6 +386,7 @@ PdsManager::AllocatePdc (uint32_t destFep, uint8_t tc, uint8_t dm,
   {
     pdcId = m_freePdcIds.front ();
     m_freePdcIds.pop ();
+    foundId = true;
     NS_LOG_DEBUG ("Reusing freed PDC ID: " << pdcId);
   }
   else
@@ -400,37 +398,36 @@ PdsManager::AllocatePdc (uint32_t destFep, uint8_t tc, uint8_t dm,
       {
         pdcId = m_nextPdcId;
         m_nextPdcId++;
-        if (m_nextPdcId == 0) m_nextPdcId = 1; // Wrap around, skip 0
+        foundId = true;
         break;
       }
       m_nextPdcId++;
-      if (m_nextPdcId == 0) m_nextPdcId = 1; // Wrap around
     }
 
     // If we wrapped around and still didn't find a free ID, check if any IDs are available
-    if (pdcId == 0 && m_pdcs.size () < m_maxPdcCount)
+    if (!foundId && m_pdcs.size () < m_maxPdcCount)
     {
       // Search from beginning for any free ID
-      for (uint16_t id = 1; id <= MAX_PDC_ID && id < m_maxPdcCount; ++id)
+      for (uint16_t id = 0; id <= MAX_PDC_ID && id < m_maxPdcCount; ++id)
       {
         if (!m_pdcIdBitmap[id])
         {
           pdcId = id;
           m_nextPdcId = id + 1;
-          if (m_nextPdcId == 0) m_nextPdcId = 1;
+          foundId = true;
           break;
         }
       }
     }
 
-    if (pdcId == 0)
+    if (!foundId)
     {
       NS_LOG_ERROR ("No free PDC IDs available (max: " << m_maxPdcCount << ")");
       if (m_statistics && m_statisticsEnabled)
       {
         m_statistics->IncrementErrors (PdsErrorCode::PDC_FULL);
       }
-      return 0;
+      return UINT16_MAX;  // Return sentinel value for failure
     }
   }
 
@@ -442,7 +439,8 @@ PdsManager::AllocatePdc (uint32_t destFep, uint8_t tc, uint8_t dm,
   if (!pdc)
   {
     NS_LOG_ERROR ("Failed to create PDC");
-    return 0;
+    m_pdcIdBitmap[pdcId] = false;
+    return UINT16_MAX;  // Return sentinel value for failure
   }
 
   pdc->SetNetDevice (m_netDevice);
@@ -454,7 +452,7 @@ PdsManager::AllocatePdc (uint32_t destFep, uint8_t tc, uint8_t dm,
   {
     NS_LOG_ERROR ("Failed to initialize PDC " << pdcId);
     m_pdcIdBitmap[pdcId] = false;
-    return 0;
+    return UINT16_MAX;  // Return sentinel value for failure
   }
   pdc->Activate ();
 
@@ -476,15 +474,6 @@ PdsManager::ReleasePdc (uint16_t pdcId)
 {
   NS_LOG_FUNCTION (this << "Releasing PDC " << pdcId);
 
-  if (pdcId == 0)
-  {
-    if (m_statistics && m_statisticsEnabled)
-    {
-      m_statistics->IncrementErrors (PdsErrorCode::INVALID_PDC);
-    }
-    return false;
-  }
-
   // Find and remove PDC from container
   auto it = m_pdcs.find (pdcId);
   if (it == m_pdcs.end ())
@@ -498,7 +487,7 @@ PdsManager::ReleasePdc (uint16_t pdcId)
   m_pdcs.erase (it);
 
   // Mark ID as free in bitmap and add to reuse queue for O(1) allocation
-  if (freedPdcId > 0 && freedPdcId <= MAX_PDC_ID)
+  if (freedPdcId <= MAX_PDC_ID)
   {
     m_pdcIdBitmap[freedPdcId] = false;
     m_freePdcIds.push (freedPdcId);
@@ -519,7 +508,7 @@ PdsManager::SendPacketThroughPdc (uint16_t pdcId, Ptr<Packet> packet, bool som, 
 {
   NS_LOG_FUNCTION (this << "Sending packet through PDC " << pdcId);
 
-  if (pdcId == 0 || !packet)
+  if (!packet)
   {
     if (m_statistics && m_statisticsEnabled)
     {
@@ -575,7 +564,7 @@ PdsManager::DispatchPacket (const SesPdsRequest& request)
   // Allocate a new PDC for this request
   uint16_t pdcId = AllocatePdc (request.dst_fep, request.tc, request.mode,
                                request.next_hdr, 0, 0);
-  if (pdcId == 0)
+  if (pdcId == UINT16_MAX)
   {
     if (m_statistics && m_statisticsEnabled)
     {

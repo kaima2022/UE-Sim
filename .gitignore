@@ -37,3 +37,6 @@ Thumbs.db
 
 *.json
 commands
+
+# Terminal Paste Image folder
+.cp-images/

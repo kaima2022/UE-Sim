@@ -34,7 +34,7 @@ SesManager::GetInstanceTypeId (void) const
 
 SesManager::SesManager ()
   : m_maxMessageId (65535),
-    m_currentMessageId (1),
+    m_currentMessageId (0),
     m_maxMtu (1500),
     m_detailedLogging (false),
     m_state (SES_IDLE),
@@ -534,7 +534,7 @@ SesManager::GenerateMessageId (Ptr<ExtendedOperationMetadata> metadata)
     if (m_currentMessageId >= m_maxMessageId - 1)
     {
         NS_LOG_WARN ("Message ID counter approaching maximum value, resetting to avoid overflow");
-        m_currentMessageId = 1; // Reset to 1 instead of 0 (0 is often reserved)
+        m_currentMessageId = 0; // Reset to 0 (base-0)
 
         // Log the counter reset for debugging
         LogDetailed ("GenerateMessageId", "Message ID counter reset due to overflow protection");
@@ -813,7 +813,7 @@ SesManager::Reset (void)
 
     // Reset state
     m_state = SES_IDLE;
-    m_currentMessageId = 1;
+    m_currentMessageId = 0;
 
     // Clear processing event
     if (m_processEventId.IsPending ())
