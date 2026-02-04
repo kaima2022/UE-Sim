@@ -35,7 +35,6 @@
 ## 3. 阶段二：接收路径经 PDS/PDC（已完成，含 B2 收端经 PDC）
 
 ### 3.1 代码变更
-
 | 任务 | 文件 | 实施内容 |
 |------|------|----------|
 | 2.1 设备收包交 PDS Manager | `soft-ue-net-device.cc` | ReceivePacket 调用 `m_pdsManager->ProcessReceivedPacket(packet, sourceFep, destFep)`，不再直接入队与 ProcessReceiveQueue |

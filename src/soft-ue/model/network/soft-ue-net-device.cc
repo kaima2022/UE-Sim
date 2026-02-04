@@ -295,9 +295,6 @@ SoftUeNetDevice::Send (Ptr<Packet> packet, const Address& dest, uint16_t protoco
   meta->SetDestinationEndpoint (destFep, 1);
   meta->payload.length = packet->GetSize ();
 
-  NS_LOG_INFO ("============================================================");
-  NS_LOG_INFO (" [UEC-E2E] [Device] 发送");
-  NS_LOG_INFO ("============================================================");
   NS_LOG_INFO ("[UEC-E2E] [Device] ⑤ 设备层 Send: FEP " << m_localFep << " → FEP " << destFep
                << " size=" << packet->GetSize () << " B → SES ProcessSendRequest(metadata, packet)");
 
@@ -446,9 +443,6 @@ SoftUeNetDevice::ReceivePacket (Ptr<Packet> packet, uint32_t sourceFep, uint32_t
       return;
     }
 
-  NS_LOG_INFO ("============================================================");
-  NS_LOG_INFO (" [UEC-E2E] [Device] 收包");
-  NS_LOG_INFO ("============================================================");
   NS_LOG_INFO ("[UEC-E2E] [Device] ⑥ 设备层 ReceivePacket: FEP " << sourceFep << " → FEP " << destFep
                << " size=" << packet->GetSize () << " B → 交 PDS Manager ProcessReceivedPacket");
 
@@ -571,9 +565,6 @@ SoftUeNetDevice::ProcessReceiveQueue (void)
       // Call receive callback if set
       if (!m_receiveCallback.IsNull ())
         {
-          NS_LOG_INFO ("============================================================");
-          NS_LOG_INFO (" [UEC-E2E] [Device] 递交应用层");
-          NS_LOG_INFO ("============================================================");
           NS_LOG_INFO ("[UEC-E2E] [Device] ⑦ 设备层 ProcessReceiveQueue: 递交应用层 HandleRead");
           m_receiveCallback (this, packet, 0x0800, CreateAddressFromFep (m_localFep));
         }

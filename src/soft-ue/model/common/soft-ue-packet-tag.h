@@ -378,6 +378,35 @@ private:
     Time m_expectedDeliveryTime;   ///< Expected delivery time
 };
 
+/**
+ * @class SoftUeFragmentTag
+ * @brief ns-3 packet tag for SES-fragmented transaction (小包 i/N)
+ *
+ * Carried on each fragment so receive path can log "小包 i/N 全流程（收端）".
+ */
+class SoftUeFragmentTag : public Tag
+{
+public:
+    static TypeId GetTypeId (void);
+    virtual TypeId GetInstanceTypeId (void) const override;
+    virtual uint32_t GetSerializedSize (void) const override;
+    virtual void Serialize (TagBuffer i) const override;
+    virtual void Deserialize (TagBuffer i) override;
+    virtual void Print (std::ostream &os) const override;
+
+    SoftUeFragmentTag ();
+    SoftUeFragmentTag (uint32_t fragmentIndex, uint32_t totalFragments);
+
+    uint32_t GetFragmentIndex (void) const;
+    void SetFragmentIndex (uint32_t index);
+    uint32_t GetTotalFragments (void) const;
+    void SetTotalFragments (uint32_t total);
+
+private:
+    uint32_t m_fragmentIndex;   ///< 1-based index of this fragment (小包 i)
+    uint32_t m_totalFragments; ///< Total number of fragments (小包 N)
+};
+
 } // namespace ns3
 
 #endif /* SOFT_UE_PACKET_TAG_H */

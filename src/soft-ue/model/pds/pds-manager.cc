@@ -219,9 +219,6 @@ PdsManager::ProcessReceivedPacket (Ptr<Packet> packet, uint32_t sourceEndpoint, 
   packet->PeekHeader (pdsHeader);
   uint16_t pdcId = pdsHeader.GetPdcId ();
 
-  NS_LOG_INFO ("============================================================");
-  NS_LOG_INFO (" [UEC-E2E] [PDS] 收包处理");
-  NS_LOG_INFO ("============================================================");
   NS_LOG_INFO ("[UEC-E2E] [PDS] ProcessReceivedPacket 解析 pdc_id=" << pdcId
                << " 按 pdc_id 分发（收端 PDC）");
 
@@ -242,6 +239,16 @@ PdsManager::ProcessReceivedPacket (Ptr<Packet> packet, uint32_t sourceEndpoint, 
 
   // Remove PDS header to get payload for upper layer
   packet->RemoveHeader (pdsHeader);
+
+  // E2E log: 小包 i/N 全流程（收端）when this packet is a SES fragment
+  SoftUeFragmentTag fragTag;
+  if (packet->PeekPacketTag (fragTag))
+    {
+      NS_LOG_INFO ("============================================================");
+      NS_LOG_INFO (" [UEC-E2E] 小包 " << fragTag.GetFragmentIndex () << "/" << fragTag.GetTotalFragments ()
+                   << " 全流程（收端）");
+      NS_LOG_INFO ("============================================================");
+    }
 
   // Update PDS statistics (with latency when SoftUeTimingTag present)
   if (m_statistics && m_statisticsEnabled)
@@ -527,9 +534,6 @@ PdsManager::SendPacketThroughPdc (uint16_t pdcId, Ptr<Packet> packet, bool som, 
     return false;
   }
 
-  NS_LOG_INFO ("============================================================");
-  NS_LOG_INFO (" [UEC-E2E] [PDS] 经 PDC 发送");
-  NS_LOG_INFO ("============================================================");
   NS_LOG_INFO ("[UEC-E2E] [PDS] SendPacketThroughPdc pdc_id=" << pdcId << " → PDC 实例发送");
 
   // Send packet through PDC

@@ -195,12 +195,7 @@ Ipdc::HandleReceivedPacket (Ptr<Packet> packet, uint32_t sourceFep)
   bool ok = EnqueuePacket (m_receiveQueue, packet, false, false,
                           m_ipdcConfig.maxReceiveQueueSize);
   if (ok)
-    {
-      NS_LOG_INFO ("============================================================");
-      NS_LOG_INFO (" [UEC-E2E] [PDC] 收包");
-      NS_LOG_INFO ("============================================================");
-      NS_LOG_INFO ("[UEC-E2E] [PDC] 收端 HandleReceivedPacket pdc_id=" << m_ipdcConfig.pdcId << " → 入队（随后 PDS → SES → App）");
-    }
+    NS_LOG_INFO ("[UEC-E2E] [PDC] 收端 HandleReceivedPacket pdc_id=" << m_ipdcConfig.pdcId << " → 入队（随后 PDS → SES → App）");
   return ok;
 }
 
@@ -603,9 +598,6 @@ Ipdc::TransmitPacket (const QueuedPacket& qp)
   Ptr<Packet> packetToSend = qp.packet->Copy ();
   packetToSend->AddHeader (header);
 
-  NS_LOG_INFO ("============================================================");
-  NS_LOG_INFO (" [UEC-E2E] [PDC] 发送");
-  NS_LOG_INFO ("============================================================");
   NS_LOG_INFO ("[UEC-E2E] [PDC] PDC pdc_id=" << m_ipdcConfig.pdcId
                << " TransmitPacket → TransmitToChannel（到信道）");
 

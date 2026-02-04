@@ -426,4 +426,86 @@ SoftUeTimingTag::SetExpectedDeliveryTime (Time time)
     m_expectedDeliveryTime = time;
 }
 
+// ============================================================================
+// SoftUeFragmentTag Implementation
+// ============================================================================
+
+NS_OBJECT_ENSURE_REGISTERED (SoftUeFragmentTag);
+
+TypeId
+SoftUeFragmentTag::GetTypeId (void)
+{
+    static TypeId tid = TypeId ("ns3::SoftUeFragmentTag")
+        .SetParent<Tag> ()
+        .SetGroupName ("SoftUe")
+        .AddConstructor<SoftUeFragmentTag> ();
+    return tid;
+}
+
+TypeId
+SoftUeFragmentTag::GetInstanceTypeId (void) const
+{
+    return GetTypeId ();
+}
+
+uint32_t
+SoftUeFragmentTag::GetSerializedSize (void) const
+{
+    return sizeof (uint32_t) * 2;
+}
+
+void
+SoftUeFragmentTag::Serialize (TagBuffer i) const
+{
+    i.WriteU32 (m_fragmentIndex);
+    i.WriteU32 (m_totalFragments);
+}
+
+void
+SoftUeFragmentTag::Deserialize (TagBuffer i)
+{
+    m_fragmentIndex = i.ReadU32 ();
+    m_totalFragments = i.ReadU32 ();
+}
+
+void
+SoftUeFragmentTag::Print (std::ostream &os) const
+{
+    os << "SoftUeFragmentTag [fragment=" << m_fragmentIndex << "/" << m_totalFragments << "]";
+}
+
+SoftUeFragmentTag::SoftUeFragmentTag ()
+    : m_fragmentIndex (0), m_totalFragments (0)
+{
+}
+
+SoftUeFragmentTag::SoftUeFragmentTag (uint32_t fragmentIndex, uint32_t totalFragments)
+    : m_fragmentIndex (fragmentIndex), m_totalFragments (totalFragments)
+{
+}
+
+uint32_t
+SoftUeFragmentTag::GetFragmentIndex (void) const
+{
+    return m_fragmentIndex;
+}
+
+void
+SoftUeFragmentTag::SetFragmentIndex (uint32_t index)
+{
+    m_fragmentIndex = index;
+}
+
+uint32_t
+SoftUeFragmentTag::GetTotalFragments (void) const
+{
+    return m_totalFragments;
+}
+
+void
+SoftUeFragmentTag::SetTotalFragments (uint32_t total)
+{
+    m_totalFragments = total;
+}
+
 } // namespace ns3

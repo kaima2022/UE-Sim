@@ -4,6 +4,7 @@
 #include <sstream>
 #include "../pds/pds-manager.h"
 #include "../network/soft-ue-net-device.h"
+#include "../common/soft-ue-packet-tag.h"
 
 namespace ns3 {
 
@@ -181,15 +182,17 @@ SesManager::ProcessSendRequest (Ptr<ExtendedOperationMetadata> metadata, Ptr<Pac
         {
             // Transaction → multiple packets: split by MTU and submit each via PDS
             NS_LOG_INFO ("============================================================");
-            NS_LOG_INFO (" [UEC-E2E] [SES] 切包");
-            NS_LOG_INFO ("============================================================");
-            NS_LOG_INFO ("[UEC-E2E] [SES] 切包: 事务 " << payloadLen << " bytes → " << nPackets
+            NS_LOG_INFO (" [UEC-E2E] 大包开始（切包） 事务 " << payloadLen << " bytes → " << nPackets
                          << " 片 (MTU=" << m_maxMtu << ")");
+            NS_LOG_INFO ("============================================================");
             SesPdsRequest baseRequest = InitializeSesHeader (metadata);
             uint32_t messageId = baseRequest.rod_context;
             uint32_t payloadPerPacket = (payloadLen + nPackets - 1) / nPackets;
             for (uint32_t i = 0; i < nPackets; ++i)
             {
+                NS_LOG_INFO ("============================================================");
+                NS_LOG_INFO (" [UEC-E2E] 小包 " << (i + 1) << "/" << nPackets << " 全流程（发送）");
+                NS_LOG_INFO ("============================================================");
                 uint32_t offset = i * payloadPerPacket;
                 uint32_t fragLen = (i + 1 == nPackets)
                     ? (payloadLen - offset)
@@ -197,6 +200,7 @@ SesManager::ProcessSendRequest (Ptr<ExtendedOperationMetadata> metadata, Ptr<Pac
                 if (fragLen == 0)
                     continue;
                 Ptr<Packet> frag = packet->CreateFragment (offset, fragLen);
+                frag->AddPacketTag (SoftUeFragmentTag (i + 1, nPackets));
                 SesPdsRequest request = baseRequest;
                 request.packet = frag;
                 request.pkt_len = static_cast<uint16_t> (fragLen);
@@ -215,7 +219,6 @@ SesManager::ProcessSendRequest (Ptr<ExtendedOperationMetadata> metadata, Ptr<Pac
                              << fragLen << " SOM=" << request.som << " EOM=" << request.eom);
             }
             NS_LOG_INFO ("[UEC-E2E] [SES] ③ SES 层 ProcessSendRequest: 1 事务 → " << nPackets << " 包");
-            NS_LOG_INFO ("============================================================");
         }
         else
         {
