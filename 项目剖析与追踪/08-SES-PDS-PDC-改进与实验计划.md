@@ -32,24 +32,26 @@
 
 ---
 
-## 3. 阶段二：接收路径经 PDS/PDC（已完成，PDC 收包处理暂跳过）
+## 3. 阶段二：接收路径经 PDS/PDC（已完成，含 B2 收端经 PDC）
 
 ### 3.1 代码变更
 
 | 任务 | 文件 | 实施内容 |
 |------|------|----------|
 | 2.1 设备收包交 PDS Manager | `soft-ue-net-device.cc` | ReceivePacket 调用 `m_pdsManager->ProcessReceivedPacket(packet, sourceFep, destFep)`，不再直接入队与 ProcessReceiveQueue |
-| 2.2 ProcessReceivedPacket 按 pdc_id 分发 | `pds-manager.cc` | 解析 PDS 头得 pdc_id，EnsureReceivePdc(pdcId, sourceFep) 被动创建接收侧 PDC；可选调用 pdc->HandleReceivedPacket（当前为规避崩溃暂不调用） |
+| 2.2 ProcessReceivedPacket 按 pdc_id 分发 | `pds-manager.cc` | 解析 PDS 头得 pdc_id，EnsureReceivePdc(pdcId, sourceFep) 被动创建接收侧 PDC；调用 `pdc->HandleReceivedPacket(packet->Copy(), sourceEndpoint)`（B2 已修复） |
 | 2.3 交付应用层 | `pds-manager.cc` / `soft-ue-net-device.cc` | ProcessReceivedPacket 去 PDS 头后调用 `m_netDevice->DeliverReceivedPacket(payload)`；DeliverReceivedPacket 入队并调用 ProcessReceiveQueue，最终触发应用 HandleRead |
 
-### 3.2 已知限制
+### 3.2 B2 排查记录（收端 PDC 约第 11 包崩溃）
 
-- **pdc->HandleReceivedPacket**：在 E2E 实验中约第 11 包时发生段错误，暂时注释调用。接收路径仍满足：Channel → Device → PdsManager::ProcessReceivedPacket → 解析 pdc_id、EnsureReceivePdc、去头、DeliverReceivedPacket → 应用。PDC 存在性与 pdc_id 分发已实现；每包经 PDC 的收包处理待后续排查（可能与 PDC 队列/调度或 Ipdc/PdcBase 收包逻辑有关）。
+- **根因**：Ipdc 存在「双队列」——PdcBase::HandleReceivedPacket 将 packet 入队到 PdcBase::m_receiveQueue（DropTailQueue），Ipdc::HandleReceivedPacket 再调用 EnqueuePacket 将同一 packet 入队到 Ipdc::m_receiveQueue（std::queue<QueuedPacket>），同一 packet 两次入队导致生命周期/访问违规，约第 11 包时触发段错误。
+- **修复**：在 PdcBase 中新增 `ValidateAndRecordReceivedPacket(packet, sourceFep)`（仅校验与 RecordPacketEntry，不入队）；Ipdc::HandleReceivedPacket 改为调用 `ValidateAndRecordReceivedPacket` 后**仅**入队到 Ipdc 的 m_receiveQueue，不再调用 PdcBase::HandleReceivedPacket（避免入队到 base 的 DropTailQueue）。收端路径传 `packet->Copy()` 给 PDC，去头仅作用于原 packet，交付仍由 PDS → SES → App 一次完成。
+- **验证**：`./ns3 run uec-e2e-concepts -- --packetCount=25` 无崩溃；接收路径日志出现「[PDC] 收端 HandleReceivedPacket pdc_id=… → 入队（随后 PDS → SES → App）」。
 
 ### 3.3 验证
 
-- 运行 `./ns3 run uec-e2e-concepts`：接收路径日志为「Device ReceivePacket → ProcessReceivedPacket → … → DeliverReceivedPacket → ProcessReceiveQueue → HandleRead」。
-- 20 包收发一致；PDS 统计（Node 1）Received Packets、Total Bytes Received、Average Latency 等正常。
+- 运行 `./ns3 run uec-e2e-concepts`：接收路径日志为「Device ReceivePacket → ProcessReceivedPacket → [PDC] 收端 HandleReceivedPacket → … → SesManager::ProcessReceiveRequest → DeliverReceivedPacket → ProcessReceiveQueue → HandleRead」。
+- 25 包及以上收发一致；PDS 统计（Node 1）Received Packets、Total Bytes Received、Average Latency 等正常。
 
 ---
 
@@ -70,8 +72,9 @@
 | **PDS 将 SES 包分配给 PDC** | Assignment of SES packets to PDCs | 已对齐 | DispatchPacket |
 | **PDS 状态/流控对 SES 可见** | Eager size, Pause | 占位 | B3：NotifyEagerSize、NotifyPause（占位） |
 | **收端经 SES** | PDS → (PDC) → Right SES (Rx req) → App | 已对齐 | B1：ProcessReceivedPacket → ProcessReceiveRequest → DeliverReceivedPacket |
-| **收端经 PDC 处理** | pdc->HandleReceivedPacket | 暂缺 | B2：约第 11 包崩溃，调用暂注释 |
+| **收端经 PDC 处理** | pdc->HandleReceivedPacket | 已对齐 | B2：双队列修复后恢复调用，路径 PDS → PDC → SES → App |
 | **控制面 Tx rsp / Error / Rx req·rsp** | Tx rsp, Error event, Rx req/Rx rsp | 占位 | B3：NotifyTxResponse、NotifyPdsErrorEvent、Rx req/Rx rsp 日志占位 |
+| **控制面 Eager size / Pause** | Eager size, Pause | 占位 | B3：DispatchPacket 内 NotifyEagerSize(1372)、NotifyPause(true/false) |
 
 ## 6. IPDC vs TPDC 与可靠性（C3）
 
@@ -109,9 +112,16 @@
 - **发送路径**（与图一致）：  
   `Device Send` → `[PDS] PDS Manager AllocatePdc pdc_id=… → SendPacketThroughPdc（经 PDC 发）` → `[PDS] SendPacketThroughPdc pdc_id=… → PDC 实例发送` → `[PDC] PDC pdc_id=… TransmitPacket → TransmitToChannel（到信道）` → `Channel Transmit`。
 - **接收路径**（与图一致）：  
-  `Channel ReceivePacket` → `Device ReceivePacket` → `[PDS] ProcessReceivedPacket 解析 pdc_id=…` → `[PDS] 去 PDS 头 → SesManager::ProcessReceiveRequest（收端经 SES → App）` → `[SES] ProcessReceiveRequest … → DeliverReceivedPacket` → `Device ProcessReceiveQueue` → `App HandleRead`。
+  `Channel ReceivePacket` → `Device ReceivePacket` → `[PDS] ProcessReceivedPacket 解析 pdc_id=…` → `[PDC] 收端 HandleReceivedPacket pdc_id=… → 入队` → `[PDS] 去 PDS 头 → SesManager::ProcessReceiveRequest（收端经 SES → App）` → `[SES] ProcessReceiveRequest … → DeliverReceivedPacket` → `Device ProcessReceiveQueue` → `App HandleRead`。
 
-**与参考图的剩余差异：**
+**与参考图审阅表（剩余差异已闭合）：**
 
-- **收端经 PDC**：图中收端可为 PDS → PDC → SES。当前实现为 PDS → SES → App；`pdc->HandleReceivedPacket` 因约第 11 包崩溃暂未调用（B2 未完成）。
-- **控制面**：Tx rsp、Error event、Rx req/Rx rsp 已占位（B3）；Eager size、Pause 为占位接口，可打日志与图对齐。
+| 参考图要素 | 实现位置 | 验证方式 |
+|------------|----------|----------|
+| 收端 PDS → PDC → SES → App | ProcessReceivedPacket → pdc->HandleReceivedPacket(packet->Copy()) → 去头 → ProcessReceiveRequest → DeliverReceivedPacket | E2E 日志 `[PDC] 收端 HandleReceivedPacket`、`[SES] ProcessReceiveRequest` |
+| Tx rsp | DispatchPacket 成功后 NotifyTxResponse(pdcId) | 日志 `[Control] Tx rsp (placeholder)` |
+| Error event | HandlePdcError / ProcessSesRequest 校验失败等 NotifyPdsErrorEvent | 日志 `[Control] Error event (placeholder)` |
+| Eager size / Pause | DispatchPacket 内 NotifyEagerSize(1372)、NotifyPause(true/false) | 日志 `[Control] Eager size (placeholder)`、`Pause (placeholder)` |
+| Rx req/Rx rsp | ProcessReceiveRequest 内占位日志 | 日志 `[Control] Rx req/Rx rsp (placeholder)` |
+
+**剩余差异验收**：运行 `./ns3 run uec-e2e-concepts -- --packetCount=25` 及 `--largeTransactionSize=4000 --packetCount=2` 无崩溃；收发包一致；控制面占位日志齐全。回归命令：`./ns3 build`，`./ns3 run uec-e2e-concepts -- --packetCount=20`。

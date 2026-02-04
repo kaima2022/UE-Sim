@@ -398,6 +398,14 @@ protected:
     virtual bool ValidatePacket (Ptr<Packet> packet, bool isSend) const;
 
     /**
+     * @brief Validate and record received packet (no enqueue). Used by Ipdc to avoid double-queue.
+     * @param packet Received packet
+     * @param sourceFep Source FEP (unused; for API consistency)
+     * @return true if valid and recorded
+     */
+    bool ValidateAndRecordReceivedPacket (Ptr<Packet> packet, uint32_t sourceFep);
+
+    /**
      * @brief Handle PDC-specific error
      * @param error Error code
      * @param details Error details

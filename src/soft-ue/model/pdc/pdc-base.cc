@@ -215,33 +215,40 @@ PdcBase::GetSesManager (void) const
 }
 
 bool
-PdcBase::HandleReceivedPacket (Ptr<Packet> packet, uint32_t sourceFep)
+PdcBase::ValidateAndRecordReceivedPacket (Ptr<Packet> packet, uint32_t sourceFep)
 {
-  NS_LOG_FUNCTION (this << "Handling received packet from FEP " << sourceFep);
+  NS_LOG_FUNCTION (this << packet << sourceFep);
+  (void) sourceFep;
 
   if (!packet || !m_active)
     {
       HandleError (PdsErrorCode::INVALID_PACKET, "Null packet or inactive PDC");
       return false;
     }
-
-  // Validate packet format
   if (!ValidatePacket (packet, false))
     {
       HandleError (PdsErrorCode::INVALID_PACKET, "Packet validation failed");
       return false;
     }
-
-  // Parse PDS header
   UETPDSHeader header = ParsePdsHeader (packet);
   if (header.dest_fep != m_config.localFep)
     {
       HandleError (PdsErrorCode::PROTOCOL_ERROR, "Packet destination mismatch");
       return false;
     }
-
-  // Record packet entry timestamp for latency measurement
   RecordPacketEntry (packet);
+  return true;
+}
+
+bool
+PdcBase::HandleReceivedPacket (Ptr<Packet> packet, uint32_t sourceFep)
+{
+  NS_LOG_FUNCTION (this << "Handling received packet from FEP " << sourceFep);
+
+  if (!ValidateAndRecordReceivedPacket (packet, sourceFep))
+    {
+      return false;
+    }
 
   // Add to receive queue for processing using ns3::Queue
   if (m_receiveQueue->Enqueue (packet))

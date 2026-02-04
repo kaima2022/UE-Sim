@@ -175,22 +175,28 @@ Ipdc::HandleReceivedPacket (Ptr<Packet> packet, uint32_t sourceFep)
       return false;
     }
 
-  // Let base class handle basic validation
-  if (!PdcBase::HandleReceivedPacket (packet, sourceFep))
+  // Validate and record only (no base enqueue) to avoid double-queue: base DropTailQueue + Ipdc std::queue
+  if (!ValidateAndRecordReceivedPacket (packet, sourceFep))
     {
       return false;
     }
-
-  // Validate packet for IPDC
   if (!ValidatePacket (packet, false))
     {
       HandleError (PdsErrorCode::INVALID_PACKET, "IPDC packet validation failed");
       return false;
     }
 
-  // Enqueue packet for receiving
-  return EnqueuePacket (m_receiveQueue, packet, false, false,
-                       m_ipdcConfig.maxReceiveQueueSize);
+  // Single enqueue: Ipdc receive queue only (PdcBase receive queue not used for IPDC receive path)
+  if (m_ipdcConfig.maxReceiveQueueSize == 0)
+    {
+      NS_LOG_WARN ("Ipdc maxReceiveQueueSize is 0, dropping packet");
+      return false;
+    }
+  bool ok = EnqueuePacket (m_receiveQueue, packet, false, false,
+                          m_ipdcConfig.maxReceiveQueueSize);
+  if (ok)
+    NS_LOG_INFO ("[UEC-E2E] [PDC] 收端 HandleReceivedPacket pdc_id=" << m_ipdcConfig.pdcId << " → 入队（随后 PDS → SES → App）");
+  return ok;
 }
 
 IpdcStatistics

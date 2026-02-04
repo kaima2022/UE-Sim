@@ -134,6 +134,8 @@ PdsManager::ProcessSesRequest (const SesPdsRequest& request)
 
   // Set busy state during processing
   m_state = PDS_BUSY;
+  if (m_sesManager)
+    m_sesManager->NotifyPause (true);  // B3: Control plane Pause placeholder
 
   // Enhanced request validation
   if (!ValidateSesPdsRequest (request))
@@ -177,6 +179,8 @@ PdsManager::ProcessSesRequest (const SesPdsRequest& request)
   if (success)
   {
     m_state = PDS_IDLE;
+    if (m_sesManager)
+      m_sesManager->NotifyPause (false);  // B3: Control plane Pause placeholder
     NS_LOG_DEBUG ("Processed SES request and transmitted packet successfully through PDC");
   }
   else
@@ -224,12 +228,13 @@ PdsManager::ProcessReceivedPacket (Ptr<Packet> packet, uint32_t sourceEndpoint, 
     NS_LOG_WARN ("ProcessReceivedPacket: could not ensure PDC " << pdcId << ", delivering anyway");
   }
 
-  // B2: pdc->HandleReceivedPacket deferred — still segfaults at ~pdc_id 11 with or without packet copy.
-  // Receive path remains PDS → SES → App; PDC receive handling to be debugged separately.
+  // B2: Receive path through PDC; pass copy so RemoveHeader below does not affect PDC queue
   Ptr<PdcBase> pdc = GetPdc (pdcId);
   if (pdc)
   {
-    // (void) pdc->HandleReceivedPacket (packet->Copy (), sourceEndpoint);
+    Ptr<Packet> pdcCopy = packet->Copy ();
+    if (pdcCopy)
+      (void) pdc->HandleReceivedPacket (pdcCopy, sourceEndpoint);
   }
 
   // Remove PDS header to get payload for upper layer
@@ -548,6 +553,9 @@ PdsManager::DispatchPacket (const SesPdsRequest& request)
 {
   NS_LOG_FUNCTION (this << "Dispatching packet to PDC");
 
+  if (m_sesManager)
+    m_sesManager->NotifyPause (true);  // B3: Control plane Pause placeholder (busy while dispatching)
+
   // Allocate a new PDC for this request
   uint16_t pdcId = AllocatePdc (request.dst_fep, request.tc, request.mode,
                                request.next_hdr, 0, 0);
@@ -573,7 +581,11 @@ PdsManager::DispatchPacket (const SesPdsRequest& request)
   if (success && m_sesManager)
     {
       m_sesManager->NotifyTxResponse (pdcId);  // B3: Control plane Tx rsp placeholder
+      m_sesManager->NotifyEagerSize (1372);    // B3: Control plane Eager size placeholder (e.g. payload per packet)
+      m_sesManager->NotifyPause (false);       // B3: Control plane Pause placeholder (idle after dispatch)
     }
+  if (!success && m_sesManager)
+    m_sesManager->NotifyPause (false);
   if (!success)
   {
     NS_LOG_ERROR ("Failed to send packet through PDC " << pdcId);
