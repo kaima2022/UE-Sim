@@ -140,6 +140,13 @@ public:
     bool SendPacketThroughPdc (uint16_t pdcId, Ptr<Packet> packet, bool som, bool eom);
 
     /**
+     * @brief Dispatch packet to PDC (AllocatePdc + SendPacketThroughPdc)
+     * @param request SES PDS request
+     * @return true if successful
+     */
+    bool DispatchPacket (const SesPdsRequest& request);
+
+    /**
      * @brief Get active PDCs count
      * @return Number of active PDCs
      */
@@ -222,18 +229,19 @@ private:
     Ptr<PdcBase> GetPdc (uint16_t pdcId) const;
 
     /**
-     * @brief Dispatch packet to PDC
-     * @param request SES PDS request
-     * @return true if successful
-     */
-    bool DispatchPacket (const SesPdsRequest& request);
-
-    /**
      * @brief Validate SES PDS request
      * @param request SES PDS request to validate
      * @return true if request is valid
      */
     bool ValidateSesPdsRequest (const SesPdsRequest& request) const;
+
+    /**
+     * @brief Ensure a PDC exists for receive (passive creation when packet arrives with unknown pdc_id)
+     * @param pdcId PDC identifier from packet header
+     * @param sourceFep Source FEP (remote endpoint)
+     * @return true if PDC exists or was created
+     */
+    bool EnsureReceivePdc (uint16_t pdcId, uint32_t sourceFep);
 
     // Member variables
     Ptr<SesManager> m_sesManager;                        ///< Associated SES manager

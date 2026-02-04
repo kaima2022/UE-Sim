@@ -300,44 +300,19 @@ SoftUeNetDevice::Send (Ptr<Packet> packet, const Address& dest, uint16_t protoco
   request.eom = true;
 
   NS_LOG_INFO ("[UEC-E2E] [Device] ⑤ 设备层 Send: FEP " << m_localFep << " → FEP " << destFep
-               << " size=" << packet->GetSize () << " B");
+               << " size=" << packet->GetSize () << " B → 经 PDS Manager DispatchPacket");
 
-  // Send directly through channel (bypass PDS manager for now)
+  // Submit Tx request to PDS Manager: DispatchPacket (AllocatePdc + SendPacketThroughPdc → PDC → Channel)
   bool success = false;
-  Ptr<Channel> baseChannel = GetChannel ();
-  if (baseChannel)
+  if (m_pdsManager)
     {
-      Ptr<SoftUeChannel> channel = DynamicCast<SoftUeChannel> (baseChannel);
-      if (channel)
-        {
-          channel->Transmit (packet, this, m_localFep, destFep);
-          success = true;
-        }
+      success = m_pdsManager->DispatchPacket (request);
     }
 
-  if (success)
-    {
-      m_statistics.totalPacketsTransmitted++;
-      m_statistics.totalBytesTransmitted += packet->GetSize ();
-      m_statistics.lastActivity = Simulator::Now ();
-      m_macTxTrace (packet, dest);
-
-      // Update PDS statistics
-      if (m_pdsManager)
-        {
-          Ptr<PdsStatistics> pdsStats = m_pdsManager->GetStatistics ();
-          if (pdsStats)
-            {
-              pdsStats->IncrementSentPackets ();
-              pdsStats->RecordBytesSent (packet->GetSize ());
-              pdsStats->IncrementErrors (PdsErrorCode::SUCCESS);
-            }
-        }
-    }
-  else
+  if (!success)
     {
       m_statistics.droppedPackets++;
-      NS_LOG_ERROR ("Failed to send packet through channel");
+      NS_LOG_ERROR ("Failed to send packet via PDS Manager (DispatchPacket)");
     }
 
   return success;
@@ -474,49 +449,18 @@ SoftUeNetDevice::ReceivePacket (Ptr<Packet> packet, uint32_t sourceFep, uint32_t
     }
 
   NS_LOG_INFO ("[UEC-E2E] [Device] ⑥ 设备层 ReceivePacket: FEP " << sourceFep << " → FEP " << destFep
-               << " size=" << packet->GetSize () << " B → 入队，待递交应用层");
+               << " size=" << packet->GetSize () << " B → 交 PDS Manager ProcessReceivedPacket");
 
-  // Add to receive queue for processing using ns-3 interface
-  bool enqueued = m_receiveQueue->Enqueue (packet);
-  if (!enqueued)
+  // Receive path through PDS Manager: parse PDS header, dispatch to PDC, then deliver to app
+  if (m_pdsManager)
     {
-      NS_LOG_WARN ("Receive queue full, dropping packet");
+      m_pdsManager->ProcessReceivedPacket (packet, sourceFep, destFep);
+    }
+  else
+    {
       m_statistics.droppedPackets++;
-      return;
+      NS_LOG_WARN ("No PDS Manager, dropping packet");
     }
-
-  // Update statistics
-  m_statistics.totalPacketsReceived++;
-  m_statistics.totalBytesReceived += packet->GetSize ();
-  m_statistics.lastActivity = Simulator::Now ();
-
-  // Update PDS statistics (with latency when SoftUeTimingTag present)
-  if (m_pdsManager && m_pdsManager->IsStatisticsEnabled ())
-    {
-      Ptr<PdsStatistics> pdsStats = m_pdsManager->GetStatistics ();
-      if (pdsStats)
-        {
-          SoftUeTimingTag timingTag;
-          if (packet->PeekPacketTag (timingTag))
-            {
-              Time sendTime = timingTag.GetTimestamp ();
-              double latencyNs = (Simulator::Now () - sendTime).GetNanoSeconds ();
-              pdsStats->RecordPacketReception (packet->GetSize (), latencyNs);
-            }
-          else
-            {
-              pdsStats->IncrementReceivedPackets ();
-              pdsStats->RecordBytesReceived (packet->GetSize ());
-            }
-          pdsStats->IncrementErrors (PdsErrorCode::SUCCESS);
-        }
-    }
-
-  // Trace packet reception
-  m_macRxTrace (packet, CreateAddressFromFep (sourceFep));
-
-  // Process the receive queue to notify upper layers
-  ProcessReceiveQueue ();
 }
 
 SoftUeStats
@@ -730,6 +674,51 @@ SoftUeNetDevice::NotifyLinkChange (void)
     {
       m_linkChangeCallbacks ();
     }
+}
+
+uint32_t
+SoftUeNetDevice::GetLocalFep (void) const
+{
+  return m_localFep;
+}
+
+bool
+SoftUeNetDevice::TransmitToChannel (Ptr<Packet> packet, uint32_t srcFep, uint32_t destFep)
+{
+  NS_LOG_FUNCTION (this << packet << srcFep << destFep);
+  if (!packet || !m_channel)
+    {
+      return false;
+    }
+  m_channel->Transmit (packet, this, srcFep, destFep);
+  m_statistics.totalPacketsTransmitted++;
+  m_statistics.totalBytesTransmitted += packet->GetSize ();
+  m_statistics.lastActivity = Simulator::Now ();
+  // PDS stats updated in SendPacketThroughPdc / ProcessReceivedPacket to avoid double-count
+  m_macTxTrace (packet, CreateAddressFromFep (destFep));
+  return true;
+}
+
+void
+SoftUeNetDevice::DeliverReceivedPacket (Ptr<Packet> packet)
+{
+  NS_LOG_FUNCTION (this << packet);
+  if (!packet)
+    {
+      return;
+    }
+  m_statistics.totalPacketsReceived++;
+  m_statistics.totalBytesReceived += packet->GetSize ();
+  m_statistics.lastActivity = Simulator::Now ();
+  m_macRxTrace (packet, CreateAddressFromFep (m_localFep));
+  bool enqueued = m_receiveQueue->Enqueue (packet);
+  if (!enqueued)
+    {
+      m_statistics.droppedPackets++;
+      NS_LOG_WARN ("DeliverReceivedPacket: receive queue full, dropping packet");
+      return;
+    }
+  ProcessReceiveQueue ();
 }
 
 uint16_t

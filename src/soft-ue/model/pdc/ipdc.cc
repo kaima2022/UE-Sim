@@ -153,8 +153,15 @@ Ipdc::SendPacket (Ptr<Packet> packet, bool som, bool eom)
       return false;
     }
 
-  // Enqueue packet for sending
-  return EnqueuePacket (m_sendQueue, packet, som, eom, m_ipdcConfig.maxSendQueueSize);
+  // Immediate send path: transmit directly (no queue drain in simulation)
+  QueuedPacket qp (packet, som, eom, GenerateSequenceNumber ());
+  bool success = TransmitPacket (qp);
+  if (success)
+    {
+      UpdateStatistics (true, packet);
+      m_packetTxTrace (packet, m_ipdcConfig.pdcId);
+    }
+  return success;
 }
 
 bool
@@ -572,41 +579,36 @@ Ipdc::TransmitPacket (const QueuedPacket& qp)
 {
   NS_LOG_FUNCTION (this << "Transmitting packet, seq: " << qp.sequenceNumber);
 
-  // In a real implementation, this would send the packet through the network device
-  // For simulation, we assume success if we have a network device
-  if (GetNetDevice ())
+  if (!GetNetDevice ())
     {
-      // Create PDS header
-      PDSHeader header = CreatePdsHeader (qp.packet, qp.som, qp.eom);
-      NS_LOG_DEBUG ("Created PDS header for packet transmission");
-
-      // Actually send through network device
-      Ptr<Packet> packetToSend = qp.packet->Copy ();
-
-      // Add PDS header to packet
-      packetToSend->AddHeader (header);
-
-      // Convert remote FEP to destination address
-      Address destAddress = ConvertFepToAddress (m_ipdcConfig.remoteFep);
-
-      // Send through network device
-      bool success = GetNetDevice ()->Send (packetToSend, destAddress, 0x0800); // EtherType for IP
-
-      if (success)
-        {
-          LogDetailed ("TransmitPacket", "Packet transmitted successfully to FEP " +
-                       std::to_string (m_ipdcConfig.remoteFep));
-        }
-      else
-        {
-          LogDetailed ("TransmitPacket", "Packet transmission failed");
-        }
-
-      return success;
+      NS_LOG_WARN ("No network device available for transmission");
+      return false;
     }
 
-  NS_LOG_WARN ("No network device available for transmission");
-  return false;
+  // Create PDS header
+  PDSHeader header = CreatePdsHeader (qp.packet, qp.som, qp.eom);
+  NS_LOG_DEBUG ("Created PDS header for packet transmission");
+
+  Ptr<Packet> packetToSend = qp.packet->Copy ();
+  packetToSend->AddHeader (header);
+
+  NS_LOG_INFO ("[UEC-E2E] [PDC] PDC pdc_id=" << m_ipdcConfig.pdcId
+               << " TransmitPacket → TransmitToChannel（到信道）");
+
+  // Transmit directly to channel (bypasses PDS Manager / DispatchPacket to avoid recursion)
+  bool success = GetNetDevice ()->TransmitToChannel (packetToSend, GetLocalFep (), m_ipdcConfig.remoteFep);
+
+  if (success)
+    {
+      LogDetailed ("TransmitPacket", "Packet transmitted successfully to FEP " +
+                   std::to_string (m_ipdcConfig.remoteFep));
+    }
+  else
+    {
+      LogDetailed ("TransmitPacket", "Packet transmission failed");
+    }
+
+  return success;
 }
 
 void

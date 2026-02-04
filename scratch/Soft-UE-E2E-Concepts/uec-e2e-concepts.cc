@@ -201,7 +201,7 @@ ConceptsDemoApp::SendPacket ()
   pdsHeader.SetSom (som);
   pdsHeader.SetEom (eom);
   packet->AddHeader (pdsHeader);
-  NS_LOG_INFO ("[UEC-E2E] [App] ② PDS 头 pdc_id=" << pdcId << " seq=" << seq << " SOM=" << som << " EOM=" << eom);
+  NS_LOG_INFO ("[UEC-E2E] [App] ② App 准备 PDS 头字段 pdc_id=" << pdcId << " seq=" << seq << " SOM=" << som << " EOM=" << eom << "（尚未经 PDS 层）");
 
   // ---------- SES 概念：OperationMetadata (OpType, FEP 侧信息, job_id, messages_id) ----------
   Ptr<ExtendedOperationMetadata> extMetadata = Create<ExtendedOperationMetadata> ();
@@ -222,12 +222,12 @@ ConceptsDemoApp::SendPacket ()
   extMetadata->SetDestinationEndpoint (dstNodeId, m_config.serverEndpointId);
   NS_LOG_INFO ("[UEC-E2E] [App] ③ SES 元数据 src_node=" << srcNodeId << " dst_node=" << dstNodeId << " job_id=" << m_config.baseClientJobId << " messages_id=" << seq);
 
-  // ---------- SES 概念：ProcessSendRequest（验证端点、参与发送路径）----------
+  // ---------- SES 概念：ProcessSendRequest（验证端点、参与发送路径）— 发送路径先经 SES，再经 PDS/PDC ----------
   (void) m_sesManager->ProcessSendRequest (extMetadata);
 
   // 打时间戳，便于接收端统计延迟（PDS 统计中的 Average/Min/Max Latency、Jitter）
   packet->AddPacketTag (SoftUeTimingTag (Simulator::Now ()));
-  NS_LOG_INFO ("[UEC-E2E] [App] ④ 打时间戳 → 调用 device->Send()");
+  NS_LOG_INFO ("[UEC-E2E] [App] ④ SES 校验通过 → 打时间戳 → 调用 device->Send()（随后经 PDS Manager → PDC → Channel）");
 
   Ptr<SoftUeNetDevice> device;
   for (uint32_t i = 0; i < GetNode ()->GetNDevices (); ++i)
@@ -342,6 +342,8 @@ main (int argc, char* argv[])
   LogComponentEnable ("SesManager", LOG_LEVEL_INFO);
   LogComponentEnable ("SoftUeNetDevice", LOG_LEVEL_INFO);
   LogComponentEnable ("SoftUeChannel", LOG_LEVEL_INFO);
+  LogComponentEnable ("PdsManager", LOG_LEVEL_INFO);
+  LogComponentEnable ("Ipdc", LOG_LEVEL_INFO);
 
   std::cout << "\n" << std::string (60, '=') << "\n";
   std::cout << "   UEC 端到端概念实验 (对应 07-UEC端到端概念实验与图解.md)\n";

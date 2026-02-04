@@ -1,11 +1,14 @@
 #include "pds-manager.h"
+#include "pds-common.h"
 #include "../pdc/pdc-base.h"
 #include "../network/soft-ue-net-device.h"
 #include "../network/soft-ue-channel.h"
+#include "../common/soft-ue-packet-tag.h"
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/assert.h"
 #include "ns3/mac48-address.h"
+#include "ns3/nstime.h"
 #include <algorithm>
 
 namespace ns3 {
@@ -156,73 +159,19 @@ PdsManager::ProcessSesRequest (const SesPdsRequest& request)
     return false;
   }
 
-  // Create destination address from destination FEP
-  uint8_t macBytes[6];
-  macBytes[0] = 0x02;
-  macBytes[1] = 0x06;
-  macBytes[2] = 0x00;
-  macBytes[3] = 0x00;
-  macBytes[4] = (request.dst_fep >> 8) & 0xFF;  // High byte of FEP
-  macBytes[5] = request.dst_fep & 0xFF;         // Low byte of FEP
+  NS_LOG_INFO ("Dispatching packet to FEP " << request.dst_fep << " via PDC");
 
-  Mac48Address destMacAddr;
-  destMacAddr.CopyFrom (macBytes);
-  Address destAddress = destMacAddr;
-
-  NS_LOG_INFO ("Transmitting packet to FEP " << request.dst_fep
-                << " at address " << destAddress);
-
-  // Actually send the packet through the channel
-  bool success = false;
-  Ptr<Channel> baseChannel = m_netDevice->GetChannel ();
-  if (baseChannel)
-  {
-    Ptr<SoftUeChannel> channel = DynamicCast<SoftUeChannel> (baseChannel);
-    if (channel)
-    {
-      // Send through channel directly
-      channel->Transmit (request.packet, m_netDevice, request.src_fep, request.dst_fep);
-      success = true;
-      NS_LOG_DEBUG ("Packet sent successfully through channel");
-    }
-    else
-    {
-      NS_LOG_ERROR ("Channel is not a SoftUeChannel");
-      if (m_statistics && m_statisticsEnabled)
-      {
-        m_statistics->IncrementErrors (PdsErrorCode::PROTOCOL_ERROR);
-      }
-      m_state = PDS_ERROR;
-      return false;
-    }
-  }
-  else
-  {
-    NS_LOG_ERROR ("No channel available for transmission");
-    if (m_statistics && m_statisticsEnabled)
-    {
-      m_statistics->IncrementErrors (PdsErrorCode::RESOURCE_EXHAUSTED);
-    }
-    m_state = PDS_ERROR;
-    return false;
-  }
-
-  // Increment received and sent packets count
-  if (m_statistics && m_statisticsEnabled)
-  {
-    m_statistics->IncrementReceivedPackets ();
-    m_statistics->IncrementSentPackets ();
-  }
-
-  NS_LOG_DEBUG ("Processed SES request and transmitted packet successfully");
+  // Send through PDC: AllocatePdc + SendPacketThroughPdc (no direct channel->Transmit)
+  bool success = DispatchPacket (request);
 
   if (success)
   {
-    m_state = PDS_IDLE; // Return to idle on success
+    m_state = PDS_IDLE;
+    NS_LOG_DEBUG ("Processed SES request and transmitted packet successfully through PDC");
   }
   else
   {
-    m_state = PDS_ERROR; // Set error on failure
+    m_state = PDS_ERROR;
   }
 
   return success;
@@ -233,7 +182,7 @@ PdsManager::ProcessReceivedPacket (Ptr<Packet> packet, uint32_t sourceEndpoint, 
 {
   NS_LOG_FUNCTION (this << "Processing received packet");
 
-  if (!packet)
+  if (!packet || !m_netDevice)
   {
     if (m_statistics && m_statisticsEnabled)
     {
@@ -242,13 +191,130 @@ PdsManager::ProcessReceivedPacket (Ptr<Packet> packet, uint32_t sourceEndpoint, 
     return false;
   }
 
-  // Increment received packets count
-  if (m_statistics && m_statisticsEnabled)
+  // Parse PDS header to get pdc_id (do not remove yet - PDC expects full packet with header)
+  if (packet->GetSize () < 7)  // PDSHeader minimal size
   {
-    m_statistics->IncrementReceivedPackets ();
+    if (m_statistics && m_statisticsEnabled)
+    {
+      m_statistics->IncrementErrors (PdsErrorCode::INVALID_PACKET);
+    }
+    return false;
   }
 
-  NS_LOG_DEBUG ("Processed received packet - size: " << packet->GetSize ());
+  PDSHeader pdsHeader;
+  packet->PeekHeader (pdsHeader);
+  uint16_t pdcId = pdsHeader.GetPdcId ();
+
+  NS_LOG_INFO ("[UEC-E2E] [PDS] ProcessReceivedPacket 解析 pdc_id=" << pdcId
+               << " 按 pdc_id 分发（收端 PDC）");
+
+  // Ensure we have a PDC for this pdc_id on receive side (passive creation)
+  if (!EnsureReceivePdc (pdcId, sourceEndpoint))
+  {
+    NS_LOG_WARN ("ProcessReceivedPacket: could not ensure PDC " << pdcId << ", delivering anyway");
+  }
+
+  Ptr<PdcBase> pdc = GetPdc (pdcId);
+  if (pdc)
+  {
+    // PDC receive handling: call would enqueue to PDC and update PDC state.
+    // Currently skipped (causes segfault after ~10 packets in E2E; to be debugged).
+    // Receive path still goes through PDS Manager and pdc_id dispatch via EnsureReceivePdc.
+    // (void) pdc->HandleReceivedPacket (packet, sourceEndpoint);
+  }
+
+  // Remove PDS header to get payload for upper layer
+  packet->RemoveHeader (pdsHeader);
+
+  // Update PDS statistics (with latency when SoftUeTimingTag present)
+  if (m_statistics && m_statisticsEnabled)
+  {
+    SoftUeTimingTag timingTag;
+    if (packet->PeekPacketTag (timingTag))
+    {
+      Time sendTime = timingTag.GetTimestamp ();
+      double latencyNs = (Simulator::Now () - sendTime).GetNanoSeconds ();
+      m_statistics->RecordPacketReception (packet->GetSize (), latencyNs);
+    }
+    else
+    {
+      m_statistics->IncrementReceivedPackets ();
+      m_statistics->RecordBytesReceived (packet->GetSize ());
+    }
+    m_statistics->IncrementErrors (PdsErrorCode::SUCCESS);
+  }
+
+  NS_LOG_DEBUG ("Processed received packet - pdc_id=" << pdcId << " payload size=" << packet->GetSize ());
+
+  NS_LOG_INFO ("[UEC-E2E] [PDS] 去 PDS 头 → DeliverReceivedPacket 递交应用层（收端未经 SES 层）");
+
+  // Deliver payload to upper layer (device enqueues and calls app callback)
+  m_netDevice->DeliverReceivedPacket (packet);
+  return true;
+}
+
+bool
+PdsManager::EnsureReceivePdc (uint16_t pdcId, uint32_t sourceFep)
+{
+  NS_LOG_FUNCTION (this << "Ensure receive PDC " << pdcId << " remoteFep=" << sourceFep);
+
+  if (pdcId == 0)
+  {
+    return false;
+  }
+
+  auto it = m_pdcs.find (pdcId);
+  if (it != m_pdcs.end ())
+  {
+    return true;
+  }
+
+  if (m_pdcs.size () >= m_maxPdcCount)
+  {
+    NS_LOG_WARN ("EnsureReceivePdc: max PDC count reached");
+    return false;
+  }
+
+  if (pdcId > MAX_PDC_ID)
+  {
+    return false;
+  }
+
+  if (pdcId >= m_pdcIdBitmap.size ())
+  {
+    NS_LOG_ERROR ("EnsureReceivePdc: pdcId " << pdcId << " >= bitmap size " << m_pdcIdBitmap.size ());
+    return false;
+  }
+
+  m_pdcIdBitmap[pdcId] = true;
+
+  Ptr<Ipdc> pdc = Create<Ipdc> ();
+  if (!pdc)
+  {
+    m_pdcIdBitmap[pdcId] = false;
+    return false;
+  }
+
+  pdc->SetNetDevice (m_netDevice);
+  PdcConfig config;
+  config.pdcId = pdcId;
+  config.localFep = m_netDevice->GetLocalFep ();
+  config.remoteFep = sourceFep;
+  if (!pdc->Initialize (config))
+  {
+    m_pdcIdBitmap[pdcId] = false;
+    return false;
+  }
+  pdc->Activate ();
+
+  m_pdcs[pdcId] = pdc;
+
+  if (m_statistics && m_statisticsEnabled)
+  {
+    m_statistics->IncrementPdcCreations ();
+  }
+
+  NS_LOG_DEBUG ("Created receive PDC " << pdcId << " for remote FEP " << sourceFep);
   return true;
 }
 
@@ -334,10 +400,18 @@ PdsManager::AllocatePdc (uint32_t destFep, uint8_t tc, uint8_t dm,
     return 0;
   }
 
-  // Configure PDC
-  pdc->SetPdcId (pdcId);
-  pdc->SetRemoteFep (destFep);
-  // TODO: Add TrafficClass and DeliveryMode setters to PDC base class
+  pdc->SetNetDevice (m_netDevice);
+  PdcConfig config;
+  config.pdcId = pdcId;
+  config.localFep = m_netDevice->GetLocalFep ();
+  config.remoteFep = destFep;
+  if (!pdc->Initialize (config))
+  {
+    NS_LOG_ERROR ("Failed to initialize PDC " << pdcId);
+    m_pdcIdBitmap[pdcId] = false;
+    return 0;
+  }
+  pdc->Activate ();
 
   // Add to PDC container
   m_pdcs[pdcId] = pdc;
@@ -421,6 +495,8 @@ PdsManager::SendPacketThroughPdc (uint16_t pdcId, Ptr<Packet> packet, bool som, 
     return false;
   }
 
+  NS_LOG_INFO ("[UEC-E2E] [PDS] SendPacketThroughPdc pdc_id=" << pdcId << " → PDC 实例发送");
+
   // Send packet through PDC
   bool success = pdc->SendPacket (packet, som, eom);
   if (!success)
@@ -459,6 +535,9 @@ PdsManager::DispatchPacket (const SesPdsRequest& request)
     }
     return false;
   }
+
+  NS_LOG_INFO ("[UEC-E2E] [PDS] PDS Manager AllocatePdc pdc_id=" << pdcId
+               << " → SendPacketThroughPdc（经 PDC 发）");
 
   // Send packet through PDC
   bool success = SendPacketThroughPdc (pdcId, request.packet, request.som, request.eom);

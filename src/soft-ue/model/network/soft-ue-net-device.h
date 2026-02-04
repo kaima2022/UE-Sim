@@ -270,6 +270,21 @@ public:
 
     // Public utility methods
     Address CreateAddressFromFep (uint32_t fep) const;
+    uint32_t GetLocalFep (void) const;
+    /**
+     * @brief Transmit packet directly to channel (used by PDC layer; bypasses PDS Manager)
+     * @param packet Packet to transmit (must already include PDS header if needed)
+     * @param srcFep Source FEP
+     * @param destFep Destination FEP
+     * @return true if transmitted successfully
+     */
+    bool TransmitToChannel (Ptr<Packet> packet, uint32_t srcFep, uint32_t destFep);
+
+    /**
+     * @brief Deliver received packet to upper layer (called by PDS Manager after ProcessReceivedPacket)
+     * @param packet Payload packet (PDS header already removed)
+     */
+    void DeliverReceivedPacket (Ptr<Packet> packet);
 
     // Traced callbacks
     TracedCallback<Ptr<Packet>, const Address&> m_macTxTrace;        ///< MAC transmit trace
