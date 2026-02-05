@@ -48,6 +48,7 @@
 - [Contributing](#contributing)
 - [Contact us](#contact-us)
 - [Citation](#citation)
+- [Acknowledgments](#acknowledgments)
 - [License](#license)
 
 ---
@@ -281,6 +282,12 @@ If you find this project useful for your research, please consider citing it in 
   year    = {2025}
 }
 ```
+
+---
+
+## Acknowledgments
+
+This project is based on [Soft-UE](https://github.com/lipu0324/Soft-UE). We greatly appreciate their pioneering work on the Ultra Ethernet software prototype.
 
 ---
 
