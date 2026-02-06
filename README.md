@@ -218,8 +218,8 @@ sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10
 
 ```
 # Clone the project
-git clone https://github.com/kaima2022/uec-ns3.git
-cd uec-ns3
+git clone https://github.com/kaima2022/UE-Sim.git
+cd UE-Sim
 
 # Configure ns-3 environment
 ./ns3 configure --enable-examples --enable-tests
@@ -279,7 +279,7 @@ If you find this project useful for your research, please consider citing it in 
 ```bibtex
 @software{UECSim,
   title   = {{UE-Sim: End-to-End Ultra Ethernet Simulation Platform}},
-  url     = {https://github.com/kaima2022/uec-ns3},
+  url     = {https://github.com/kaima2022/UE-Sim},
   version = {v1.0.0},
   year    = {2025}
 }
