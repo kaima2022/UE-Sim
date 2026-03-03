@@ -9,6 +9,10 @@
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%2020.04+-lightgrey.svg)](#environment-requirements)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-orange.svg)](https://isocpp.org/)
 
+[Project Website](https://kaima2022.github.io/UE-Sim/) | [GitHub Repository](https://github.com/kaima2022/UE-Sim)
+
+UE-Sim is an Ultra Ethernet network simulator based on ns-3 for AI and HPC data center network research, protocol validation, and performance benchmarking.
+
 
 <div align="center">
   <table>
