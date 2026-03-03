@@ -57,3 +57,4 @@ benchmarks/
 test.py
 stress_test_results/
 openspec/
+.github/
