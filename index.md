@@ -1,10 +1,10 @@
 ---
 layout: default
-title: UE-Sim
-description: UE-Sim is an end-to-end Ultra Ethernet network simulation platform for AI and HPC workloads.
+title: UE-Sim / UEC-Sim
+description: UE-Sim (also searched as UEC-Sim or UEC Sim) is an end-to-end Ultra Ethernet network simulation platform for AI and HPC workloads.
 ---
 
-# UE-Sim
+# UE-Sim / UEC-Sim
 
 End-to-End Ultra Ethernet Simulation Platform based on ns-3.
 
@@ -15,7 +15,7 @@ End-to-End Ultra Ethernet Simulation Platform based on ns-3.
 
 [GitHub Repository](https://github.com/kaima2022/UE-Sim) | [README](README.md)
 
-UE-Sim is an Ultra Ethernet network simulator for AI/HPC data center network research, protocol validation, and performance benchmarking.
+UE-Sim (UEC-Sim, UEC Sim) is an Ultra Ethernet network simulator for AI/HPC data center network research, protocol validation, and performance benchmarking.
 
 ## Highlights
 

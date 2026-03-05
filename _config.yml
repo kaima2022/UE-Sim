@@ -1,5 +1,5 @@
-title: "UE-Sim"
-description: "UE-Sim is an end-to-end Ultra Ethernet network simulation platform for AI and HPC workloads."
+title: "UE-Sim / UEC-Sim"
+description: "UE-Sim (also searched as UEC-Sim or UEC Sim) is an end-to-end Ultra Ethernet network simulation platform for AI and HPC workloads."
 url: "https://kaima2022.github.io"
 baseurl: "/UE-Sim"
 repository: "kaima2022/UE-Sim"
